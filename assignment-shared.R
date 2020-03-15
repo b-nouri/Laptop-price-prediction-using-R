@@ -3,6 +3,7 @@
 #install.packages("naniar")
 #install.packages("VIM")
 #install.packages("DMwR")
+#install.packages("caret")
 
 #---------Load Libraries ------------------------------------
 library(plyr)
@@ -10,6 +11,7 @@ library(tidyverse)
 library(naniar)
 library(VIM)
 library(DMwR)
+library(caret)
 
 #--------Load Data-------------------------------------------
 train_df <- read.csv("https://raw.githubusercontent.com/behnouri/lprice-prediction/master/train.csv", na.strings = c("", "NA"))
@@ -59,3 +61,65 @@ sum(is.na(test_df))
 aggr(x=test_df[,6:20])
 clean_test <- test_df
 clean_test$screen_surface <- mapvalues(clean_test$screen_surface,c("glossy","matte"),c("Glossy","Matte"))
+
+
+
+
+
+#------Repeated K-Fold Cross Validation (K = 10, repeats = 3)----------------
+
+# Selecting only the features to use
+maxPrice_Clean_Training <- training_subset %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os, max_price)
+glimpse(maxPrice_Clean_Training)
+
+minPrice_Clean_Training <- training_subset %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os, min_price)
+glimpse(minPrice_Clean_Training)
+
+# Training control definition
+set.seed(123)
+train.control <- trainControl(method = "repeatedcv",
+                              number = 10, repeats = 3)
+
+#--------Models for maxPrice -----------------
+
+##### Train the model 1 (Linear regression)
+model1_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
+                method = "lm", trControl = train.control, metric = "MAE") #warning a lot of features
+
+##### Train the model 2 (Generalized Linear Model without func specified -> could be improved)
+model2_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
+                method = "glm", trControl = train.control, metric = "MAE") #warning a lot of features
+
+##### Train the model 3 (GLM with Step AIC)
+model3_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
+                method = "glmStepAIC", trControl = train.control, metric = "MAE")
+
+##### Train the model 4 (Elastic net (glm))
+model4_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
+                method = "glmnet", trControl = train.control, metric = "MAE")
+
+#--------Models for min_price -----------------
+
+model1_min <- train(min_price ~ . , data = minPrice_Clean_Training,
+                method = "lm", trControl = train.control, metric = "MAE") #warning a lot of features
+
+##### Train the model 2 (Generalized Linear Model without func specified -> could be improved)
+model2_min <- train(min_price ~ . , data = minPrice_Clean_Training,
+                method = "glm", trControl = train.control, metric = "MAE") #warning a lot of features
+
+##### Train the model 3 (GLM with Step AIC)
+model3_min <- train(min_price ~ . , data = minPrice_Clean_Training,
+                method = "glmStepAIC", trControl = train.control, metric = "MAE")
+
+##### Train the model 4 (Elastic net (glm))
+model4_min <- train(min_price ~ . , data = minPrice_Clean_Training,
+                method = "glmnet", trControl = train.control, metric = "MAE")
+
+
+#------- Summarize the results----------------
+
+print((model1_max$results$MAE+model1_min$results$MAE)/2)
+print((model2_max$results$MAE+model2_min$results$MAE)/2)
+print((model3_max$results$MAE+model3_min$results$MAE)/2)
+print(min((model4_max$results$MAE+model4_min$results$MAE)/2))
+
