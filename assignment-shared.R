@@ -62,64 +62,152 @@ aggr(x=test_df[,6:20])
 clean_test <- test_df
 clean_test$screen_surface <- mapvalues(clean_test$screen_surface,c("glossy","matte"),c("Glossy","Matte"))
 
+#--------- Data not normalized ---------------
 
+maxPrice_Clean_Training_prev <- training_subset %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os, max_price)
+maxPrice_Clean_Training <- data.frame(model.matrix(~., data=maxPrice_Clean_Training_prev))
+
+minPrice_Clean_Training_prev <- training_subset %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os, min_price)
+minPrice_Clean_Training <- data.frame(model.matrix(~., data=minPrice_Clean_Training_prev))
+
+
+#-------- Data normalization -------------------
+
+index_Categ <- match(c("brand", "touchscreen", "dkeyboard", "os", "max_price", "min_price"), names(training_subset))
+preProcValues <- preProcess(training_subset[-index_Categ], method = "range")
+
+trainScaled <- predict(preProcValues, training_subset)
+glimpse(trainScaled)
+
+#testScaleded <- predict(preProcValues, test) #Should also normalized the test data based on the training data
 
 
 
 #------Repeated K-Fold Cross Validation (K = 10, repeats = 3)----------------
 
 # Selecting only the features to use
-maxPrice_Clean_Training <- training_subset %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os, max_price)
-glimpse(maxPrice_Clean_Training)
+maxPrice_Norm_Training_prev <- trainScaled %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os, max_price)
+maxPrice_Norm_Training <- data.frame(model.matrix(~., data=maxPrice_Norm_Training_prev))
+maxPrice_Norm_Training
 
-minPrice_Clean_Training <- training_subset %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os, min_price)
-glimpse(minPrice_Clean_Training)
+minPrice_Norm_Training_prev <- trainScaled %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os, min_price)
+minPrice_Norm_Training <- data.frame(model.matrix(~., data=minPrice_Norm_Training_prev))
+minPrice_Norm_Training
 
 # Training control definition
 set.seed(123)
 train.control <- trainControl(method = "repeatedcv",
                               number = 10, repeats = 3)
 
-#--------Models for maxPrice -----------------
+
+
+#--------Models for maxPrice with Normalized data (except decision tree models) -----------------
 
 ##### Train the model 1 (Linear regression)
-model1_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
-                method = "lm", trControl = train.control, metric = "MAE") #warning a lot of features
+model1_max <- train(max_price ~ . , data = maxPrice_Norm_Training,
+                    method = "lm", trControl = train.control, metric = "MAE") #warning a lot of features
 
 ##### Train the model 2 (Generalized Linear Model without func specified -> could be improved)
-model2_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
-                method = "glm", trControl = train.control, metric = "MAE") #warning a lot of features
+model2_max <- train(max_price ~ . , data = maxPrice_Norm_Training,
+                    method = "glm", trControl = train.control, metric = "MAE") #warning a lot of features
 
 ##### Train the model 3 (GLM with Step AIC)
-model3_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
-                method = "glmStepAIC", trControl = train.control, metric = "MAE")
+model3_max <- train(max_price ~ . , data = maxPrice_Norm_Training,
+                    method = "glmStepAIC", trControl = train.control, metric = "MAE")
 
 ##### Train the model 4 (Elastic net (glm))
-model4_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
-                method = "glmnet", trControl = train.control, metric = "MAE")
+model4_max <- train(max_price ~ . , data = maxPrice_Norm_Training,
+                    method = "glmnet", trControl = train.control, metric = "MAE")
 
-#--------Models for min_price -----------------
+##### Train the model 5 Boosted Tree
+model5_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
+                    method = "bstTree", trControl = train.control, metric = "MAE")
 
-model1_min <- train(min_price ~ . , data = minPrice_Clean_Training,
-                method = "lm", trControl = train.control, metric = "MAE") #warning a lot of features
+##### Train the model 6 eXtreme Gradient Boosting
+model6_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
+                    method = "xgbTree", trControl = train.control, metric = "MAE")
+
+##### Train the model 7 Parallel Random Forest
+model7_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
+                    method = "parRF", trControl = train.control, metric = "MAE")
+
+##### Train the model 8 Stochastic Gradient Boosting
+model8_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
+                    method = "gbm", trControl = train.control, metric = "MAE")
+
+
+
+#--------Models for min_price with Normalized data (except decision tree models) -----------------
+
+##### Train the model 1 (Linear regression)
+model1_min <- train(min_price ~ . , data = minPrice_Norm_Training,
+                    method = "lm", trControl = train.control, metric = "MAE") #warning a lot of features
 
 ##### Train the model 2 (Generalized Linear Model without func specified -> could be improved)
-model2_min <- train(min_price ~ . , data = minPrice_Clean_Training,
-                method = "glm", trControl = train.control, metric = "MAE") #warning a lot of features
+model2_min <- train(min_price ~ . , data = minPrice_Norm_Training,
+                    method = "glm", trControl = train.control, metric = "MAE") #warning a lot of features
 
 ##### Train the model 3 (GLM with Step AIC)
-model3_min <- train(min_price ~ . , data = minPrice_Clean_Training,
-                method = "glmStepAIC", trControl = train.control, metric = "MAE")
+model3_min <- train(min_price ~ . , data = minPrice_Norm_Training,
+                    method = "glmStepAIC", trControl = train.control, metric = "MAE")
 
 ##### Train the model 4 (Elastic net (glm))
-model4_min <- train(min_price ~ . , data = minPrice_Clean_Training,
-                method = "glmnet", trControl = train.control, metric = "MAE")
+model4_min <- train(min_price ~ . , data = minPrice_Norm_Training,
+                    method = "glmnet", trControl = train.control, metric = "MAE")
+
+##### Train the model 5 Boosted Tree
+model5_min <- train(min_price ~ . , data = minPrice_Clean_Training,
+                    method = "bstTree", trControl = train.control, metric = "MAE")
+
+##### Train the model 6 eXtreme Gradient Boosting
+model6_min <- train(min_price ~ . , data = minPrice_Clean_Training,
+                    method = "xgbTree", trControl = train.control, metric = "MAE")
+
+##### Train the model 7 Parallel Random Forest
+model7_min <- train(min_price ~ . , data = minPrice_Clean_Training,
+                    method = "parRF", trControl = train.control, metric = "MAE")
+
+##### Train the model 8 Stochastic Gradient Boosting
+model8_min <- train(min_price ~ . , data = minPrice_Clean_Training,
+                    method = "gbm", trControl = train.control, metric = "MAE")
 
 
-#------- Summarize the results----------------
+
+#------- Summarize the results with Normalized data ----------------
 
 print((model1_max$results$MAE+model1_min$results$MAE)/2)
 print((model2_max$results$MAE+model2_min$results$MAE)/2)
 print((model3_max$results$MAE+model3_min$results$MAE)/2)
 print(min((model4_max$results$MAE+model4_min$results$MAE)/2))
+print(min((model5_max$results$MAE+model5_min$results$MAE)/2))
+print(min((model6_max$results$MAE+model6_min$results$MAE)/2))
+print(min((model7_max$results$MAE+model7_min$results$MAE)/2))
+print(min((model8_max$results$MAE+model8_min$results$MAE)/2))
+
+
+# ------- Other models already tried ---------------
+
+# Bayesian Generalized Linear Model ("bayesglm"): error 212.22
+# Boosted Generalized Linear Model ("glmboost"): error 216.01
+# Boosted Linear Model ("BstLm"): error 264.93
+# Generalized Additive Model using LOESS ("gamLoess"): error 210.55 (with some warnings)
+# Generalized Additive Model using Splines ("gam"): error 215.83
+# L2 Regularized Support Vector Machine (dual) with Linear Kernel ("svmLinear3"): error 211.24
+# Multi-Layer Perceptron ("mlp"): error 483.44 (There were missing values in resampled performance measures) -> due to unbalance variables
+# Multi-Layer Perceptron, multiple layers ("mlpWeightDecayML"): error 478.04 (There were missing values in resampled performance measures) -> due to unbalance variables
+# Neural Network ("nnet"): error 815 (There were missing values in resampled performance measures) -> due to unbalance variables
+# Partial Least Squares ("pls"): error 224.67
+
+# Models that failed
+# Bayesian Additive Regression Trees ("bartMachine"): shows an error with the rjava.
+# Bayesian Regularized Neural Networks ("brnn"): shows an error missing values (no MAE).
+# Boosted Generalized Additive Model ("gamboost"): error (no MAE).
+# Dynamic Evolving Neural-Fuzzy Inference System ("DENFIS"): attributes without interval/range (no MAE).
+# Elasticnet ("enet"): error some columns with zero variance.
+# Ensembles of Generalized Linear Models ("randomGLM"): nCandidateCovariates is larger than nFeaturesInBag. Had to stop, takes too much time
+# Gradient Boosting Machines ("gbm_h2o"): model fit failed (no MAE).
+# Partial Least Squares Generalized Linear Models ("plsRglm"): error (no MAE).
+# Random Forest by Randomization ("extraTrees"): shows an error with the rjava.
+# Relevance Vector Machines with Polynomial Kernel ("rvmPoly"): model fit failed (no MAE).
+
 
