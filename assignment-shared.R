@@ -64,6 +64,7 @@ clean_test$screen_surface <- mapvalues(clean_test$screen_surface,c("glossy","mat
 
 #--------- Data not normalized ---------------
 
+# Selecting only the features to use
 maxPrice_Clean_Training_prev <- training_subset %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os, max_price)
 maxPrice_Clean_Training <- data.frame(model.matrix(~., data=maxPrice_Clean_Training_prev))
 
@@ -97,7 +98,7 @@ minPrice_Norm_Training
 # Training control definition
 set.seed(123)
 train.control <- trainControl(method = "repeatedcv",
-                              number = 10, repeats = 3)
+                              number = 5, repeats = 3)
 
 
 
@@ -183,6 +184,35 @@ print(min((model5_max$results$MAE+model5_min$results$MAE)/2))
 print(min((model6_max$results$MAE+model6_min$results$MAE)/2))
 print(min((model7_max$results$MAE+model7_min$results$MAE)/2))
 print(min((model8_max$results$MAE+model8_min$results$MAE)/2))
+
+
+# Test data subset not normalized (should use the real test data once it is clean)
+Test_prev <- test_subset %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os)
+Price_Test <- data.frame(model.matrix(~., data=Test_prev))
+
+
+# Test data subset normalized (should use the real test data once it is clean)
+testScaled <- predict(preProcValues, test_subset)
+glimpse(test_subset)
+glimpse(testScaled)
+
+NormTest_prev <- testScaled %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os)
+Price_NormTest <- data.frame(model.matrix(~., data=NormTest_prev))
+
+
+# Prediction of min_price
+predict(model1_min, maxPrice_NormTest, type = "raw") #Liner regression
+
+predict(model7_min, maxPrice_Test, type = "raw") #Parallel Random Forest
+
+# Prediction of max_price
+predict(model1_max, maxPrice_NormTest, type = "raw") #Liner regression
+
+predict(model7_max, maxPrice_Test, type = "raw") #Parallel Random Forest
+
+
+
+
 
 
 # ------- Other models already tried ---------------
