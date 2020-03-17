@@ -65,26 +65,26 @@ clean_test$screen_surface <- mapvalues(clean_test$screen_surface,c("glossy","mat
 #--------- Data not normalized ---------------
 
 # Selecting only the features to use
-maxPrice_Clean_Training_prev <- training_subset %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os, max_price)
+maxPrice_Clean_Training_prev <- clean3_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os, max_price)
 maxPrice_Clean_Training <- data.frame(model.matrix(~., data=maxPrice_Clean_Training_prev))
 
-minPrice_Clean_Training_prev <- training_subset %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os, min_price)
+minPrice_Clean_Training_prev <- clean3_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os, min_price)
 minPrice_Clean_Training <- data.frame(model.matrix(~., data=minPrice_Clean_Training_prev))
 
 
 #-------- Data normalization -------------------
 
-index_Categ <- match(c("brand", "touchscreen", "dkeyboard", "os", "max_price", "min_price"), names(training_subset))
-preProcValues <- preProcess(training_subset[-index_Categ], method = "range")
+index_Categ <- match(c("brand", "touchscreen", "dkeyboard", "os", "max_price", "min_price"), names(clean3_knn))
+preProcValues <- preProcess(clean3_knn[-index_Categ], method = "range")
 
-trainScaled <- predict(preProcValues, training_subset)
+trainScaled <- predict(preProcValues, clean3_knn)
 glimpse(trainScaled)
 
-#testScaleded <- predict(preProcValues, test) #Should also normalized the test data based on the training data
+testScaled <- predict(preProcValues, clean_test)
+glimpse(testScaled)
 
 
-
-#------Repeated K-Fold Cross Validation (K = 10, repeats = 3)----------------
+#------Repeated K-Fold Cross Validation (K = 5, repeats = 3)----------------
 
 # Selecting only the features to use
 maxPrice_Norm_Training_prev <- trainScaled %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os, max_price)
@@ -174,41 +174,46 @@ model8_min <- train(min_price ~ . , data = minPrice_Clean_Training,
 
 
 
-#------- Summarize the results with Normalized data ----------------
+#------- Summarize the results ----------------
 
-print((model1_max$results$MAE+model1_min$results$MAE)/2)
-print((model2_max$results$MAE+model2_min$results$MAE)/2)
-print((model3_max$results$MAE+model3_min$results$MAE)/2)
-print(min((model4_max$results$MAE+model4_min$results$MAE)/2))
-print(min((model5_max$results$MAE+model5_min$results$MAE)/2))
-print(min((model6_max$results$MAE+model6_min$results$MAE)/2))
-print(min((model7_max$results$MAE+model7_min$results$MAE)/2))
-print(min((model8_max$results$MAE+model8_min$results$MAE)/2))
+print(model1_max$results$MAE+model1_min$results$MAE)
+print(model2_max$results$MAE+model2_min$results$MAE)
+print(model3_max$results$MAE+model3_min$results$MAE)
+print(min(model4_max$results$MAE+model4_min$results$MAE))
+print(min(model5_max$results$MAE+model5_min$results$MAE))
+print(min(model6_max$results$MAE+model6_min$results$MAE))
+print(min(model7_max$results$MAE+model7_min$results$MAE))
+print(min(model8_max$results$MAE+model8_min$results$MAE))
 
 
-# Test data subset not normalized (should use the real test data once it is clean)
-Test_prev <- test_subset %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os)
+# -------- Prediction of test data --------------------
+
+# Test data not normalized
+Test_prev <- clean_test %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os)
 Price_Test <- data.frame(model.matrix(~., data=Test_prev))
+glimpse(Price_Test)
 
-
-# Test data subset normalized (should use the real test data once it is clean)
-testScaled <- predict(preProcValues, test_subset)
-glimpse(test_subset)
-glimpse(testScaled)
-
-NormTest_prev <- testScaled %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os)
+# Test data normalized
+NormTest_prev <- clean_test %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os)
 Price_NormTest <- data.frame(model.matrix(~., data=NormTest_prev))
+
+#Adding missing columns
+missingcol <- names(maxPrice_Clean_Training[!(names(maxPrice_Clean_Training[, !(names(maxPrice_Clean_Training) == "max_price")]) %in% names(Price_Test))])
+Price_Test[missingcol] <- 0
+Price_NormTest[missingcol] <- 0
+
+glimpse(Price_NormTest)
 
 
 # Prediction of min_price
-predict(model1_min, maxPrice_NormTest, type = "raw") #Liner regression
+predict(model1_min, Price_NormTest, type = "raw") #Liner regression
 
-predict(model7_min, maxPrice_Test, type = "raw") #Parallel Random Forest
+predict(model7_min, Price_Test, type = "raw") #Parallel Random Forest (best so far)
 
 # Prediction of max_price
-predict(model1_max, maxPrice_NormTest, type = "raw") #Liner regression
+predict(model1_max, Price_NormTest, type = "raw") #Liner regression
 
-predict(model7_max, maxPrice_Test, type = "raw") #Parallel Random Forest
+predict(model7_max, Price_Test, type = "raw") #Parallel Random Forest (best so far)
 
 
 
