@@ -62,6 +62,13 @@ aggr(x=test_df[,6:20])
 clean_test <- test_df
 clean_test$screen_surface <- mapvalues(clean_test$screen_surface,c("glossy","matte"),c("Glossy","Matte"))
 
+clean_test_knn <- knnImputation(clean_test)
+aggr(x=clean_test_knn)
+
+clean_test_knn %>%
+  summarise_if(is.factor,nlevels)
+
+
 #--------- Data not normalized ---------------
 
 # Selecting only the features to use
@@ -189,12 +196,14 @@ print(min(model8_max$results$MAE+model8_min$results$MAE))
 # -------- Prediction of test data --------------------
 
 # Test data not normalized
-Test_prev <- clean_test %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os)
+Test_prev <- clean_test_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os)
 Price_Test <- data.frame(model.matrix(~., data=Test_prev))
+glimpse(Test_prev)
 glimpse(Price_Test)
+model.matrix(~., data=Test_prev)
 
 # Test data normalized
-NormTest_prev <- clean_test %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os)
+NormTest_prev <- clean_test_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os)
 Price_NormTest <- data.frame(model.matrix(~., data=NormTest_prev))
 
 #Adding missing columns
@@ -202,21 +211,26 @@ missingcol <- names(maxPrice_Clean_Training[!(names(maxPrice_Clean_Training[, !(
 Price_Test[missingcol] <- 0
 Price_NormTest[missingcol] <- 0
 
-glimpse(Price_NormTest)
+
+# Example of Prediction of min_price
+predict(model1_min, Price_NormTest, type = "raw") #Linear regression should reference the Normalized Test data - Decision tress to not Normalized
+
+# Example of Prediction of max_price
+predict(model1_max, Price_NormTest, type = "raw") #Linear regression should reference the Normalized Test data - Decision tress to not Normalized
 
 
-# Prediction of min_price
-predict(model1_min, Price_NormTest, type = "raw") #Liner regression
+# ----------- Results ------------------
 
-predict(model7_min, Price_Test, type = "raw") #Parallel Random Forest (best so far)
+id_test <- clean_test_knn %>% select(id)
 
-# Prediction of max_price
-predict(model1_max, Price_NormTest, type = "raw") #Liner regression
+bothModels <- list(model7_min ,model7_max)
+pred <- data.frame(predict(bothModels, Price_Test, type = "raw")) #Parallel Random Forest (best so far)
+names(pred) <- c("MIN","MAX")
 
-predict(model7_max, Price_Test, type = "raw") #Parallel Random Forest (best so far)
+results <- cbind(id_test,pred)
+results
 
-
-
+write.csv(results, file = "Model 1(Parallel Random Forest).csv", row.names = F)
 
 
 
