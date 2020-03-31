@@ -79,6 +79,26 @@ minPrice_Clean_Training_prev <- clean3_knn %>% select(brand, touchscreen, screen
 minPrice_Clean_Training <- data.frame(model.matrix(~., data=minPrice_Clean_Training_prev))
 
 
+# Adding pixels_x, discrete_gpu, removing os
+
+maxPrice_Clean_Training_prev2 <- clean3_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, pixels_x, discrete_gpu, max_price)
+maxPrice_Clean_Training2 <- data.frame(model.matrix(~., data=maxPrice_Clean_Training_prev2))
+
+minPrice_Clean_Training_prev2 <- clean3_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, pixels_x, discrete_gpu, min_price)
+minPrice_Clean_Training2 <- data.frame(model.matrix(~., data=minPrice_Clean_Training_prev2))
+
+# Adding pixels_x*pixels_y, discrete_gpu, removing os
+
+clean3_knn$pixels_xy = clean3_knn$pixels_x*clean3_knn$pixels_y
+
+maxPrice_Clean_Training_prev3 <- clean3_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, pixels_xy, discrete_gpu, max_price)
+maxPrice_Clean_Training3 <- data.frame(model.matrix(~., data=maxPrice_Clean_Training_prev3))
+
+minPrice_Clean_Training_prev3 <- clean3_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, pixels_xy, discrete_gpu, min_price)
+minPrice_Clean_Training3 <- data.frame(model.matrix(~., data=minPrice_Clean_Training_prev3))
+
+
+
 #-------- Data normalization -------------------
 
 index_Categ <- match(c("brand", "touchscreen", "dkeyboard", "os", "max_price", "min_price"), names(clean3_knn))
@@ -91,7 +111,7 @@ testScaled <- predict(preProcValues, clean_test)
 glimpse(testScaled)
 
 
-#------Repeated K-Fold Cross Validation (K = 5, repeats = 3)----------------
+#------Repeated K-Fold Cross Validation (K = 20, repeats = 3)----------------
 
 # Selecting only the features to use
 maxPrice_Norm_Training_prev <- trainScaled %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os, max_price)
@@ -105,7 +125,7 @@ minPrice_Norm_Training
 # Training control definition
 set.seed(123)
 train.control <- trainControl(method = "repeatedcv",
-                              number = 5, repeats = 3)
+                              number = 20, repeats = 3)
 
 
 
@@ -143,6 +163,13 @@ model7_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
 model8_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
                     method = "gbm", trControl = train.control, metric = "MAE")
 
+##### Train the model 9 Parallel Random Forest: with pixels_x and discrete_gpu, removing os
+model9_max <- train(max_price ~ . , data = maxPrice_Clean_Training2,
+                    method = "parRF", trControl = train.control, metric = "MAE")
+
+##### Train the model 10 Parallel Random Forest: with pixels_xy and discrete_gpu, removing os
+model10_max <- train(max_price ~ . , data = maxPrice_Clean_Training3,
+                    method = "parRF", trControl = train.control, metric = "MAE")
 
 
 #--------Models for min_price with Normalized data (except decision tree models) -----------------
@@ -179,7 +206,13 @@ model7_min <- train(min_price ~ . , data = minPrice_Clean_Training,
 model8_min <- train(min_price ~ . , data = minPrice_Clean_Training,
                     method = "gbm", trControl = train.control, metric = "MAE")
 
+##### Train the model 9 Parallel Random Forest: with pixels_x and discrete_gpu, removing os
+model9_min <- train(min_price ~ . , data = minPrice_Clean_Training2,
+                    method = "parRF", trControl = train.control, metric = "MAE")
 
+##### Train the model 10 Parallel Random Forest: with pixels_xy and discrete_gpu, removing os
+model10_min <- train(min_price ~ . , data = minPrice_Clean_Training3,
+                    method = "parRF", trControl = train.control, metric = "MAE")
 
 #------- Summarize the results ----------------
 
@@ -192,11 +225,15 @@ print(min(model6_max$results$MAE+model6_min$results$MAE))
 print(min(model7_max$results$MAE+model7_min$results$MAE))
 print(min(model8_max$results$MAE+model8_min$results$MAE))
 
+print(min(model9_max$results$MAE+model9_min$results$MAE)) #Changed some features: with pixels_x and discrete_gpu, removing os
+print(min(model10_max$results$MAE+model10_min$results$MAE)) #Changed some features: with pixels_xy and discrete_gpu, removing os
 
 # -------- Prediction of test data --------------------
 
+clean_test_knn$pixels_xy = clean_test_knn$pixels_x*clean_test_knn$pixels_y
+
 # Test data not normalized
-Test_prev <- clean_test_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os)
+Test_prev <- clean_test_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, pixels_xy, discrete_gpu)
 Price_Test <- data.frame(model.matrix(~., data=Test_prev))
 glimpse(Test_prev)
 glimpse(Price_Test)
@@ -206,8 +243,8 @@ model.matrix(~., data=Test_prev)
 NormTest_prev <- clean_test_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os)
 Price_NormTest <- data.frame(model.matrix(~., data=NormTest_prev))
 
-#Adding missing columns
-missingcol <- names(maxPrice_Clean_Training[!(names(maxPrice_Clean_Training[, !(names(maxPrice_Clean_Training) == "max_price")]) %in% names(Price_Test))])
+#Adding missing columns (use corresponding training set)
+missingcol <- names(maxPrice_Clean_Training3[!(names(maxPrice_Clean_Training3[, !(names(maxPrice_Clean_Training3) == "max_price")]) %in% names(Price_Test))])
 Price_Test[missingcol] <- 0
 Price_NormTest[missingcol] <- 0
 
@@ -223,14 +260,14 @@ predict(model1_max, Price_NormTest, type = "raw") #Linear regression should refe
 
 id_test <- clean_test_knn %>% select(id)
 
-bothModels <- list(model7_min ,model7_max)
+bothModels <- list(model10_min ,model10_max)
 pred <- data.frame(predict(bothModels, Price_Test, type = "raw")) #Parallel Random Forest (best so far)
 names(pred) <- c("MIN","MAX")
 
 results <- cbind(id_test,pred)
 results
 
-write.csv(results, file = "Model 1(Parallel Random Forest).csv", row.names = F)
+write.csv(results, file = "Model 2(Parallel Random Forest).csv", row.names = F)
 
 
 
