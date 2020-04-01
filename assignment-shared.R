@@ -89,7 +89,7 @@ clean5 <- clean4 %>%
   left_join(cpu_df,by="cpu_clean")
 
 clean5$cpu_model <- as.character(clean5$cpu_model)
-clean5$cpu_benchmark_score[is.na(clean5$benchmark_score)] <- 500
+clean5$cpu_benchmark_score[is.na(clean5$cpu_benchmark_score)] <- 500
 clean5$cpu_model[is.na(clean5$cpu_model)] <- "other"
 
 
@@ -175,6 +175,15 @@ maxPrice_Clean_Training3 <- data.frame(model.matrix(~., data=maxPrice_Clean_Trai
 minPrice_Clean_Training_prev3 <- clean3_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, pixels_xy, discrete_gpu, min_price)
 minPrice_Clean_Training3 <- data.frame(model.matrix(~., data=minPrice_Clean_Training_prev3))
 
+# Adding pixels_x*pixels_y, discrete_gpu, gpu_benchmark_score, cpu_benchmark_score, removing os ,removing dkeyboard
+
+clean6$pixels_xy = clean6$pixels_x*clean6$pixels_y
+
+maxPrice_Clean_Training_prev4 <- clean6 %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, pixels_xy, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score, max_price)
+maxPrice_Clean_Training4 <- data.frame(model.matrix(~., data=maxPrice_Clean_Training_prev3))
+
+minPrice_Clean_Training_prev4 <- clean6 %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, pixels_xy, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score, min_price)
+minPrice_Clean_Training4 <- data.frame(model.matrix(~., data=minPrice_Clean_Training_prev3))
 
 
 #-------- Data normalization -------------------
@@ -248,7 +257,9 @@ model9_max <- train(max_price ~ . , data = maxPrice_Clean_Training2,
 ##### Train the model 10 Parallel Random Forest: with pixels_xy and discrete_gpu, removing os
 model10_max <- train(max_price ~ . , data = maxPrice_Clean_Training3,
                     method = "parRF", trControl = train.control, metric = "MAE")
-
+##### Train the model 11 Parallel Random Forest: with pixels_xy and discrete_gpu, removing os
+model11_max <- train(max_price ~ . , data = maxPrice_Clean_Training4,
+                     method = "parRF", trControl = train.control, metric = "MAE")
 
 #--------Models for min_price with Normalized data (except decision tree models) -----------------
 
@@ -291,6 +302,9 @@ model9_min <- train(min_price ~ . , data = minPrice_Clean_Training2,
 ##### Train the model 10 Parallel Random Forest: with pixels_xy and discrete_gpu, removing os
 model10_min <- train(min_price ~ . , data = minPrice_Clean_Training3,
                     method = "parRF", trControl = train.control, metric = "MAE")
+##### Train the model 11 Parallel Random Forest: with pixels_xy and discrete_gpu, removing os
+model11_min <- train(min_price ~ . , data = minPrice_Clean_Training4,
+                     method = "parRF", trControl = train.control, metric = "MAE")
 
 #------- Summarize the results ----------------
 
@@ -305,7 +319,8 @@ print(min(model8_max$results$MAE+model8_min$results$MAE))
 
 print(min(model9_max$results$MAE+model9_min$results$MAE)) #Changed some features: with pixels_x and discrete_gpu, removing os
 print(min(model10_max$results$MAE+model10_min$results$MAE)) #Changed some features: with pixels_xy and discrete_gpu, removing os
-
+print(min(model11_max$results$MAE+model11_min$results$MAE)) # Adding pixels_x*pixels_y, discrete_gpu, gpu_benchmark_score,
+                                                            # cpu_benchmark_score, removing os ,removing dkeyboard
 # -------- Prediction of test data --------------------
 
 clean_test_knn$pixels_xy = clean_test_knn$pixels_x*clean_test_knn$pixels_y
