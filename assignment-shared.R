@@ -25,6 +25,7 @@ colnames(cpu_df)[1] <- "cpu_model"
 colnames(cpu_df)[2] <- "cpu_benchmark_score"
 colnames(gpu_df)[1] <- "gpu_model"
 colnames(gpu_df)[2] <- "gpu_benchmark_score"
+
 #--------Prepare Train Data---------------------------------
 head(train_df)
 sum(is.na(train_df))
@@ -123,12 +124,12 @@ gpu_null <- clean6 %>%
 clean6[is.na(clean6$gpu_benchmark_score),"gpu_benchmark_score"] <- mean(clean6$gpu_benchmark_score,na.rm=TRUE)
 
 
-#-------Split Train Data to train/test subsets (80/20 percent) ----------------------
-require(caTools)
-set.seed(741)
-sample = sample.split(clean3_knn$id,SplitRatio = 0.8)
-training_subset =subset(clean3_knn,sample ==TRUE)
-test_subset = subset(clean3_knn,sample ==FALSE)
+#-------Split Train Data to train/test subsets (80/20 percent) --------- // Currently not use because K-Folds creates a validation set
+#require(caTools)
+#set.seed(741)
+#sample = sample.split(clean3_knn$id,SplitRatio = 0.8)
+#training_subset =subset(clean3_knn,sample ==TRUE)
+#test_subset = subset(clean3_knn,sample ==FALSE)
 
 
 #-------Prepare Test Data-----------------------------------
@@ -146,66 +147,89 @@ aggr(x=clean_test_knn)
 clean_test_knn %>%
   summarise_if(is.factor,nlevels)
 
+clean_test1 <- clean_test_knn %>%
+  mutate(resolution = pixels_x * pixels_y)
+
+#--------------CPU Scores for test data -----------------------------------------
+clean_test1 <-clean_test1 %>%
+  mutate(cpu_details,cpu_clean= gsub("\\s*(\\d[.]\\d*)\\s*(GHz|ghz|Ghz|Ghz|gHz).*","",clean_test1$cpu_details))
+
+cpu_df<-cpu_df %>%
+  mutate(cpu_model,cpu_clean= gsub("\\s*([@]).*|\\s*(APU).*","",cpu_df$cpu_model))
+
+clean_test2 <- clean_test1 %>%
+  left_join(cpu_df,by="cpu_clean")
+
+clean_test2$cpu_model <- as.character(clean_test2$cpu_model)
+clean_test2$cpu_benchmark_score[is.na(clean_test2$cpu_benchmark_score)] <- 500
+clean_test2$cpu_model[is.na(clean_test2$cpu_model)] <- "other"
+
+
+
+#--------------GPU Scores for test data -----------------------------------------------
+clean_test3 <- mutate(clean_test2, gpu = ifelse(discrete_gpu == 0, 0,as.character(gpu)))
+
+clean_test3<-clean_test3 %>%
+  mutate(gpu,gpu_model= gsub("^(\\S+\\s+\\n?){1}","",clean_test3$gpu))
+
+gpu_df[,1] <- gsub(" with", "", gpu_df$gpu_model)
+gpu_df[,1] <- gsub(" Design", "", gpu_df$gpu_model)
+
+clean_test3$gpu_model <- gsub("GeFoce", "GeForce", clean_test3$gpu_model)
+clean_test3$gpu_model <- gsub("GTX1070", "GTX 1070", clean_test3$gpu_model)
+
+clean_test3 <- clean_test3 %>%
+  left_join(gpu_df,by="gpu_model")
+
+clean_test3$gpu_benchmark_score[clean_test3$gpu_model == 0] <- 0
+
+geforce_df <- filter(clean_test3, grepl('GeForce',clean_test3$gpu))
+geforce_mean_score <- mean(geforce_df$gpu_benchmark_score, na.rm =TRUE)
+
+clean_test3[is.na(clean_test3$gpu_benchmark_score) & grepl("GeForce",clean_test3$gpu_model),"gpu_benchmark_score"] <- geforce_mean_score
+
+gpu_null <- clean_test3 %>%
+  select(gpu_model,gpu_benchmark_score) %>%
+  filter(is.na(clean_test3$gpu_benchmark_score))
+
+clean_test3[is.na(clean_test3$gpu_benchmark_score),"gpu_benchmark_score"] <- mean(clean_test3$gpu_benchmark_score,na.rm=TRUE)
+
+
 
 #--------- Data not normalized ---------------
 
 # Selecting only the features to use
-maxPrice_Clean_Training_prev <- clean3_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os, max_price)
+#Features: brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution(pixels_x*pixels_y), discrete_gpu, 
+#          cpu_benchmark_score, gpu_benchmark_score
+
+
+maxPrice_Clean_Training_prev <- clean6 %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score, max_price)
 maxPrice_Clean_Training <- data.frame(model.matrix(~., data=maxPrice_Clean_Training_prev))
 
-minPrice_Clean_Training_prev <- clean3_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os, min_price)
+minPrice_Clean_Training_prev <- clean6 %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score, min_price)
 minPrice_Clean_Training <- data.frame(model.matrix(~., data=minPrice_Clean_Training_prev))
-
-
-# Adding pixels_x, discrete_gpu, removing os
-
-maxPrice_Clean_Training_prev2 <- clean3_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, pixels_x, discrete_gpu, max_price)
-maxPrice_Clean_Training2 <- data.frame(model.matrix(~., data=maxPrice_Clean_Training_prev2))
-
-minPrice_Clean_Training_prev2 <- clean3_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, pixels_x, discrete_gpu, min_price)
-minPrice_Clean_Training2 <- data.frame(model.matrix(~., data=minPrice_Clean_Training_prev2))
-
-# Adding pixels_x*pixels_y, discrete_gpu, removing os
-
-clean3_knn$pixels_xy = clean3_knn$pixels_x*clean3_knn$pixels_y
-
-maxPrice_Clean_Training_prev3 <- clean3_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, pixels_xy, discrete_gpu, max_price)
-maxPrice_Clean_Training3 <- data.frame(model.matrix(~., data=maxPrice_Clean_Training_prev3))
-
-minPrice_Clean_Training_prev3 <- clean3_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, pixels_xy, discrete_gpu, min_price)
-minPrice_Clean_Training3 <- data.frame(model.matrix(~., data=minPrice_Clean_Training_prev3))
-
-# Adding pixels_x*pixels_y, discrete_gpu, gpu_benchmark_score, cpu_benchmark_score, removing os ,removing dkeyboard
-
-clean6$pixels_xy = clean6$pixels_x*clean6$pixels_y
-
-maxPrice_Clean_Training_prev4 <- clean6 %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, pixels_xy, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score, max_price)
-maxPrice_Clean_Training4 <- data.frame(model.matrix(~., data=maxPrice_Clean_Training_prev4))
-
-minPrice_Clean_Training_prev4 <- clean6 %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, pixels_xy, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score, min_price)
-minPrice_Clean_Training4 <- data.frame(model.matrix(~., data=minPrice_Clean_Training_prev4))
 
 
 #-------- Data normalization -------------------
 
-index_Categ <- match(c("brand", "touchscreen", "dkeyboard", "os", "max_price", "min_price"), names(clean3_knn))
-preProcValues <- preProcess(clean3_knn[-index_Categ], method = "range")
+index_Response <- match(c("max_price", "min_price"), names(clean6))
+preProcValues <- preProcess(clean6[-index_Response], method = "range")
 
-trainScaled <- predict(preProcValues, clean3_knn)
+trainScaled <- predict(preProcValues, clean6)
 glimpse(trainScaled)
 
-testScaled <- predict(preProcValues, clean_test)
+testScaled <- predict(preProcValues, clean_test3)
 glimpse(testScaled)
 
 
 #------Repeated K-Fold Cross Validation (K = 20, repeats = 3)----------------
 
-# Selecting only the features to use
-maxPrice_Norm_Training_prev <- trainScaled %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os, max_price)
+# Selecting only the features to use for Normalized data
+maxPrice_Norm_Training_prev <- trainScaled %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score, max_price)
 maxPrice_Norm_Training <- data.frame(model.matrix(~., data=maxPrice_Norm_Training_prev))
 maxPrice_Norm_Training
 
-minPrice_Norm_Training_prev <- trainScaled %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os, min_price)
+minPrice_Norm_Training_prev <- trainScaled %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score, min_price)
 minPrice_Norm_Training <- data.frame(model.matrix(~., data=minPrice_Norm_Training_prev))
 minPrice_Norm_Training
 
@@ -217,6 +241,10 @@ train.control <- trainControl(method = "repeatedcv",
 
 
 #--------Models for maxPrice with Normalized data (except decision tree models) -----------------
+
+#Features: brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu, 
+#          cpu_benchmark_score, gpu_benchmark_score
+
 
 ##### Train the model 1 (Linear regression)
 model1_max <- train(max_price ~ . , data = maxPrice_Norm_Training,
@@ -242,26 +270,21 @@ model5_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
 model6_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
                     method = "xgbTree", trControl = train.control, metric = "MAE")
 
-##### Train the model 7 Parallel Random Forest
+##### Train the model 7 Parallel Random Forest  <---------------BEST MODEL SO FAR
 model7_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
                     method = "parRF", trControl = train.control, metric = "MAE")
 
-##### Train the model 8 Stochastic Gradient Boosting
+##### Train the model 8 Stochastic Gradient Boosting # warning for some brands (few observations)
 model8_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
                     method = "gbm", trControl = train.control, metric = "MAE")
 
-##### Train the model 9 Parallel Random Forest: with pixels_x and discrete_gpu, removing os
-model9_max <- train(max_price ~ . , data = maxPrice_Clean_Training2,
-                    method = "parRF", trControl = train.control, metric = "MAE")
 
-##### Train the model 10 Parallel Random Forest: with pixels_xy and discrete_gpu, removing os
-model10_max <- train(max_price ~ . , data = maxPrice_Clean_Training3,
-                    method = "parRF", trControl = train.control, metric = "MAE")
-##### Train the model 11 Parallel Random Forest: with pixels_xy and discrete_gpu, removing os
-model11_max <- train(max_price ~ . , data = maxPrice_Clean_Training4,
-                     method = "parRF", trControl = train.control, metric = "MAE")
 
 #--------Models for min_price with Normalized data (except decision tree models) -----------------
+
+#Features: brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu, 
+#          cpu_benchmark_score, gpu_benchmark_score
+
 
 ##### Train the model 1 (Linear regression)
 model1_min <- train(min_price ~ . , data = minPrice_Norm_Training,
@@ -287,26 +310,21 @@ model5_min <- train(min_price ~ . , data = minPrice_Clean_Training,
 model6_min <- train(min_price ~ . , data = minPrice_Clean_Training,
                     method = "xgbTree", trControl = train.control, metric = "MAE")
 
-##### Train the model 7 Parallel Random Forest
+##### Train the model 7 Parallel Random Forest  <---------------BEST MODEL SO FAR
 model7_min <- train(min_price ~ . , data = minPrice_Clean_Training,
                     method = "parRF", trControl = train.control, metric = "MAE")
 
-##### Train the model 8 Stochastic Gradient Boosting
+##### Train the model 8 Stochastic Gradient Boosting # warning for some brands (few observations)
 model8_min <- train(min_price ~ . , data = minPrice_Clean_Training,
                     method = "gbm", trControl = train.control, metric = "MAE")
 
-##### Train the model 9 Parallel Random Forest: with pixels_x and discrete_gpu, removing os
-model9_min <- train(min_price ~ . , data = minPrice_Clean_Training2,
-                    method = "parRF", trControl = train.control, metric = "MAE")
 
-##### Train the model 10 Parallel Random Forest: with pixels_xy and discrete_gpu, removing os
-model10_min <- train(min_price ~ . , data = minPrice_Clean_Training3,
-                    method = "parRF", trControl = train.control, metric = "MAE")
-##### Train the model 11 Parallel Random Forest: with pixels_xy and discrete_gpu, removing os
-model11_min <- train(min_price ~ . , data = minPrice_Clean_Training4,
-                     method = "parRF", trControl = train.control, metric = "MAE")
 
 #------- Summarize the results ----------------
+
+#Features: brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu, 
+#          cpu_benchmark_score, gpu_benchmark_score
+
 
 print(model1_max$results$MAE+model1_min$results$MAE)
 print(model2_max$results$MAE+model2_min$results$MAE)
@@ -314,53 +332,41 @@ print(model3_max$results$MAE+model3_min$results$MAE)
 print(min(model4_max$results$MAE+model4_min$results$MAE))
 print(min(model5_max$results$MAE+model5_min$results$MAE))
 print(min(model6_max$results$MAE+model6_min$results$MAE))
-print(min(model7_max$results$MAE+model7_min$results$MAE))
+print(min(model7_max$results$MAE+model7_min$results$MAE)) # <---------------BEST MODEL SO FAR
 print(min(model8_max$results$MAE+model8_min$results$MAE))
 
-print(min(model9_max$results$MAE+model9_min$results$MAE)) #Changed some features: with pixels_x and discrete_gpu, removing os
-print(min(model10_max$results$MAE+model10_min$results$MAE)) #Changed some features: with pixels_xy and discrete_gpu, removing os
-print(min(model11_max$results$MAE+model11_min$results$MAE)) # Adding pixels_x*pixels_y, discrete_gpu, gpu_benchmark_score,
-                                                            # cpu_benchmark_score, removing os ,removing dkeyboard
+
 # -------- Prediction of test data --------------------
 
-clean_test_knn$pixels_xy = clean_test_knn$pixels_x*clean_test_knn$pixels_y
-
 # Test data not normalized
-Test_prev <- clean_test_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, pixels_xy, discrete_gpu)
+Test_prev <- clean_test3 %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score)
 Price_Test <- data.frame(model.matrix(~., data=Test_prev))
 glimpse(Test_prev)
 glimpse(Price_Test)
 model.matrix(~., data=Test_prev)
 
 # Test data normalized
-NormTest_prev <- clean_test_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, os)
+NormTest_prev <- testScaled %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score)
 Price_NormTest <- data.frame(model.matrix(~., data=NormTest_prev))
 
 #Adding missing columns (use corresponding training set)
-missingcol <- names(maxPrice_Clean_Training3[!(names(maxPrice_Clean_Training3[, !(names(maxPrice_Clean_Training3) == "max_price")]) %in% names(Price_Test))])
+missingcol <- names(maxPrice_Clean_Training[!(names(maxPrice_Clean_Training[, !(names(maxPrice_Clean_Training) == "max_price")]) %in% names(Price_Test))])
 Price_Test[missingcol] <- 0
 Price_NormTest[missingcol] <- 0
 
 
-# Example of Prediction of min_price
-predict(model1_min, Price_NormTest, type = "raw") #Linear regression should reference the Normalized Test data - Decision tress to not Normalized
-
-# Example of Prediction of max_price
-predict(model1_max, Price_NormTest, type = "raw") #Linear regression should reference the Normalized Test data - Decision tress to not Normalized
-
-
 # ----------- Results ------------------
 
-id_test <- clean_test_knn %>% select(id)
+id_test <- clean_test3 %>% select(id)
 
-bothModels <- list(model10_min ,model10_max)
+bothModels <- list(model7_min ,model7_max)
 pred <- data.frame(predict(bothModels, Price_Test, type = "raw")) #Parallel Random Forest (best so far)
 names(pred) <- c("MIN","MAX")
 
 results <- cbind(id_test,pred)
 results
 
-write.csv(results, file = "Model 2(Parallel Random Forest).csv", row.names = F)
+write.csv(results, file = "Model 3(Parallel Random Forest).csv", row.names = F)
 
 
 
