@@ -12,11 +12,19 @@ library(naniar)
 library(VIM)
 library(DMwR)
 library(caret)
+library(PerformanceAnalytics)
 
 #--------Load Data-------------------------------------------
 train_df <- read.csv("https://raw.githubusercontent.com/behnouri/lprice-prediction/master/train.csv", na.strings = c("", "NA"))
 test_df <- read.csv("https://raw.githubusercontent.com/behnouri/lprice-prediction/master/test.csv", na.strings=c("NA",""))
 
+#--------Load CPU and GPU Data-----------------------------------------
+gpu_df <- read.csv("https://raw.githubusercontent.com/behnouri/lprice-prediction/master/GPU_Benchmark.csv", na.strings = c("", "NA"))
+cpu_df <- read.csv("https://raw.githubusercontent.com/behnouri/lprice-prediction/master/CPU_Benchmark.csv", na.strings = c("", "NA"))
+colnames(cpu_df)[1] <- "cpu_model"
+colnames(cpu_df)[2] <- "cpu_benchmark_score"
+colnames(gpu_df)[1] <- "gpu_model"
+colnames(gpu_df)[2] <- "gpu_benchmark_score"
 #--------Prepare Train Data---------------------------------
 head(train_df)
 sum(is.na(train_df))
@@ -43,6 +51,76 @@ aggr(x=clean3_knn)
 
 clean3_knn %>%
   summarise_if(is.factor,nlevels)
+
+clean4 <- clean3_knn %>%
+  mutate(resolution = pixels_x * pixels_y)
+
+df_res <- unique(clean4[c("screen_size","pixels_x","pixels_y","resolution")])
+df_res %>%
+  arrange(desc(resolution))
+
+ggplot(clean4,aes(x=resolution,y=max_price,color=screen_size)) +
+  geom_point() +
+  scale_color_gradient(low="blue", high="red")
+
+
+cor(clean4$resolution,clean4$max_price)
+cor(clean4$resolution,clean4$max_price,method = "spearman")
+cor(clean4$screen_size,clean4$max_price)
+
+sort(unique(clean4$screen_size))
+
+clean4 %>%
+  select(screen_size) %>%
+  table()
+
+
+clean4[clean4$pixels_x == 3840, c("brand","base_name","screen_size","pixels_x","pixels_y")]
+
+
+#--------------CPU Scores-----------------------------------------------
+clean4<-clean4 %>%
+  mutate(cpu_details,cpu_clean= gsub("\\s*(\\d[.]\\d*)\\s*(GHz|ghz|Ghz|Ghz|gHz).*","",clean4$cpu_details))
+
+cpu_df<-cpu_df %>%
+  mutate(cpu_model,cpu_clean= gsub("\\s*([@]).*|\\s*(APU).*","",cpu_df$cpu_model))
+
+clean5 <- clean4 %>%
+  left_join(cpu_df,by="cpu_clean")
+
+clean5$cpu_model <- as.character(clean5$cpu_model)
+clean5$cpu_benchmark_score[is.na(clean5$cpu_benchmark_score)] <- 500
+clean5$cpu_model[is.na(clean5$cpu_model)] <- "other"
+
+
+
+#--------------GPU Scores-----------------------------------------------
+clean6 <- mutate(clean5, gpu = ifelse(discrete_gpu == 0, 0,as.character(gpu)))
+
+clean6<-clean6 %>%
+  mutate(gpu,gpu_model= gsub("^(\\S+\\s+\\n?){1}","",clean6$gpu))
+
+gpu_df[,1] <- gsub(" with", "", gpu_df$gpu_model)
+gpu_df[,1] <- gsub(" Design", "", gpu_df$gpu_model)
+
+clean6$gpu_model <- gsub("GeFoce", "GeForce", clean6$gpu_model)
+clean6$gpu_model <- gsub("GTX1070", "GTX 1070", clean6$gpu_model)
+
+clean6 <- clean6 %>%
+  left_join(gpu_df,by="gpu_model")
+
+clean6$gpu_benchmark_score[clean6$gpu_model == 0] <- 0
+
+geforce_df <- filter(clean6, grepl('GeForce',clean6$gpu))
+geforce_mean_score <- mean(geforce_df$gpu_benchmark_score, na.rm =TRUE)
+
+clean6[is.na(clean6$gpu_benchmark_score) & grepl("GeForce",clean6$gpu_model),"gpu_benchmark_score"] <- geforce_mean_score
+
+gpu_null <- clean6 %>%
+  select(gpu_model,gpu_benchmark_score) %>%
+  filter(is.na(clean6$gpu_benchmark_score))
+
+clean6[is.na(clean6$gpu_benchmark_score),"gpu_benchmark_score"] <- mean(clean6$gpu_benchmark_score,na.rm=TRUE)
 
 
 #-------Split Train Data to train/test subsets (80/20 percent) ----------------------
@@ -97,6 +175,15 @@ maxPrice_Clean_Training3 <- data.frame(model.matrix(~., data=maxPrice_Clean_Trai
 minPrice_Clean_Training_prev3 <- clean3_knn %>% select(brand, touchscreen, screen_size , weight, ram, storage, dkeyboard, ssd, pixels_xy, discrete_gpu, min_price)
 minPrice_Clean_Training3 <- data.frame(model.matrix(~., data=minPrice_Clean_Training_prev3))
 
+# Adding pixels_x*pixels_y, discrete_gpu, gpu_benchmark_score, cpu_benchmark_score, removing os ,removing dkeyboard
+
+clean6$pixels_xy = clean6$pixels_x*clean6$pixels_y
+
+maxPrice_Clean_Training_prev4 <- clean6 %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, pixels_xy, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score, max_price)
+maxPrice_Clean_Training4 <- data.frame(model.matrix(~., data=maxPrice_Clean_Training_prev4))
+
+minPrice_Clean_Training_prev4 <- clean6 %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, pixels_xy, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score, min_price)
+minPrice_Clean_Training4 <- data.frame(model.matrix(~., data=minPrice_Clean_Training_prev4))
 
 
 #-------- Data normalization -------------------
@@ -170,7 +257,9 @@ model9_max <- train(max_price ~ . , data = maxPrice_Clean_Training2,
 ##### Train the model 10 Parallel Random Forest: with pixels_xy and discrete_gpu, removing os
 model10_max <- train(max_price ~ . , data = maxPrice_Clean_Training3,
                     method = "parRF", trControl = train.control, metric = "MAE")
-
+##### Train the model 11 Parallel Random Forest: with pixels_xy and discrete_gpu, removing os
+model11_max <- train(max_price ~ . , data = maxPrice_Clean_Training4,
+                     method = "parRF", trControl = train.control, metric = "MAE")
 
 #--------Models for min_price with Normalized data (except decision tree models) -----------------
 
@@ -213,6 +302,9 @@ model9_min <- train(min_price ~ . , data = minPrice_Clean_Training2,
 ##### Train the model 10 Parallel Random Forest: with pixels_xy and discrete_gpu, removing os
 model10_min <- train(min_price ~ . , data = minPrice_Clean_Training3,
                     method = "parRF", trControl = train.control, metric = "MAE")
+##### Train the model 11 Parallel Random Forest: with pixels_xy and discrete_gpu, removing os
+model11_min <- train(min_price ~ . , data = minPrice_Clean_Training4,
+                     method = "parRF", trControl = train.control, metric = "MAE")
 
 #------- Summarize the results ----------------
 
@@ -227,7 +319,8 @@ print(min(model8_max$results$MAE+model8_min$results$MAE))
 
 print(min(model9_max$results$MAE+model9_min$results$MAE)) #Changed some features: with pixels_x and discrete_gpu, removing os
 print(min(model10_max$results$MAE+model10_min$results$MAE)) #Changed some features: with pixels_xy and discrete_gpu, removing os
-
+print(min(model11_max$results$MAE+model11_min$results$MAE)) # Adding pixels_x*pixels_y, discrete_gpu, gpu_benchmark_score,
+                                                            # cpu_benchmark_score, removing os ,removing dkeyboard
 # -------- Prediction of test data --------------------
 
 clean_test_knn$pixels_xy = clean_test_knn$pixels_x*clean_test_knn$pixels_y
