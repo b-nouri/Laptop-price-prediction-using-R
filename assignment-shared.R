@@ -180,10 +180,10 @@ minPrice_Clean_Training3 <- data.frame(model.matrix(~., data=minPrice_Clean_Trai
 clean6$pixels_xy = clean6$pixels_x*clean6$pixels_y
 
 maxPrice_Clean_Training_prev4 <- clean6 %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, pixels_xy, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score, max_price)
-maxPrice_Clean_Training4 <- data.frame(model.matrix(~., data=maxPrice_Clean_Training_prev3))
+maxPrice_Clean_Training4 <- data.frame(model.matrix(~., data=maxPrice_Clean_Training_prev4))
 
 minPrice_Clean_Training_prev4 <- clean6 %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, pixels_xy, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score, min_price)
-minPrice_Clean_Training4 <- data.frame(model.matrix(~., data=minPrice_Clean_Training_prev3))
+minPrice_Clean_Training4 <- data.frame(model.matrix(~., data=minPrice_Clean_Training_prev4))
 
 
 #-------- Data normalization -------------------
