@@ -127,18 +127,15 @@ library(stringr)
 
   clean6$base_name <- tolower(clean6$base_name)
   base_nam <- clean6 %>%
-  mutate(base_name,base_name_clean= gsub("\\s*([(]).*|\\s*(-).*","",clean6$base_name)) %>%
-  mutate(base_name,base_name_clean=str_extract(clean6$base_name,"^(?=.*\\bacer\\b)(?:\\S+\\s){1,2}|^(?=.*\\bacer\\b)(?:\\S+){1}")) %>%
+  mutate(base_name,base_name_clean= gsub("\\s*([(]).*|\\s*([-]).*","",clean6$base_name)) 
+  
+  base_nam <- base_nam %>%
+    mutate(base_name_clean=ifelse(grepl("acer",base_name),str_extract(base_nam$base_name_clean,"^(?=.*\\bacer\\b)(?:\\S+\\s){2}|^(?=.*\\bacer\\b)(?:\\S+){1}"),base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("alienware",base_name),str_extract(base_nam$base_name_clean,"^(?=alienware)(\\S+\\s){2}|^(?=alienware)(\\S+\\s\\S+)"),base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("asus",base_name),str_extract(base_nam$base_name_clean,"^(?=asus)(\\S+\\s){2,3}|^(?=alienware)(\\S+\\s\\S+){1,2}"),base_name_clean)) %>%
   select(brand,base_name,base_name_clean,max_price)
   
-  mutate(base_name,base_name_clean=str_extract(clean6$base_name,"^(?=.*\\balienware\\b)(?:\\S+\\s){1,2}|^(?=.*\\balienware\\b)(?:\\S+){1}")) %>%
-    
-  mutate(base_name,base_name_clean=str_extract(clean6$base_name,"^(?=.*\\bacer\\b)(?:\\S+\\s){2}|^(?=.*\\bacer\\b)(?:\\S+){1}")) %>%
-    
-  base_nam <- base_nam %>%
-  mutate(base_name_clean,base_name_clean2= str_extract(clean6$base_name_clean,"(\\S+\\s){1,2}(\\S+){0,1}|^(\\S+){0,1}")) %>%
-  select(brand,base_name,base_name_clean,max_price,base_name_clean2)
-
+  
   unique(base_nam$base_name_clean)
   unique(base_nam$base_name)
   
