@@ -130,15 +130,21 @@ library(stringr)
   mutate(base_name_clean= ifelse(grepl("asus flip tp500la",base_name),"ASUS Transformer Book Flip TP500LA",base_name_clean)) %>%  
   mutate(base_name_clean= ifelse(grepl("asus rog gl702vs",base_name),"ASUS ROG Strix GL702VS",base_name_clean)) %>%
   mutate(base_name_clean= ifelse(grepl("asus 14 eeebook",base_name),"asus eeebook 14",base_name_clean)) %>%
-  mutate(base_name_clean= ifelse(grepl("asus zenbook 3 deluxe ux490ua",base_name),"asus zenbook 3",base_name_clean))
+  mutate(base_name_clean= ifelse(grepl("asus zenbook 3 deluxe ux490ua",base_name),"asus zenbook 3",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("dell i3558-9136blk",base_name),"Dell Inspiron 15.6 Touch-Screen Laptop Intel Core",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("dell g3",base_name),"Dell g",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("dell g5",base_name),"Dell g",base_name_clean)) %>%
+  mutate(base_name_clean= gsub("^.*dell xps\\S+.*","Dell xps",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("dell inspiron chromebook",base_name),"dell chromebook",base_name_clean))
     
   
   base_nam$base_name_clean <- tolower(base_nam$base_name_clean)
   
   base_nam <- base_nam %>%
     mutate(base_name_clean=ifelse(grepl("acer",base_name),str_extract(base_nam$base_name_clean,"^(?=.*\\bacer\\b)(?:\\S+\\s){2}|^(?=.*\\bacer\\b)(?:\\S+){1}"),base_name_clean)) %>%
-    mutate(base_name_clean=ifelse(grepl("alienware",base_name),str_extract(base_nam$base_name_clean,"^(?=alienware)(\\S+\\s){2}|^(?=alienware)(\\S+\\s\\S+)"),base_name_clean)) %>%
-    mutate(base_name_clean=ifelse(grepl("asus",base_name),str_extract(base_nam$base_name_clean,"^(?=asus)(\\S+\\s){2,3}|^(?=alienware)(\\S+\\s\\S+){1,2}"),base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("alienware",base_name),str_extract(base_nam$base_name_clean,"(\\S+\\s){2}|^(\\S+\\s\\S+)"),base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("asus",base_name),str_extract(base_nam$base_name_clean,"(\\S+\\s){2,3}|(\\S+\\s\\S+){1,2}"),base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("dell",base_name),str_extract(base_nam$base_name_clean,"^(\\S+\\s){2}|^(\\S+\\s\\S+)"),base_name_clean)) %>%
   select(brand,base_name,base_name_clean,max_price)
   
   unique(base_nam$base_name_clean)
