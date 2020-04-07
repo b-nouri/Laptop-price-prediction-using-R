@@ -125,16 +125,21 @@ clean6[is.na(clean6$gpu_benchmark_score),"gpu_benchmark_score"] <- mean(clean6$g
 #-------Base Name--------------------------------------------------------
 library(stringr)
 
-  clean6$base_name <- tolower(clean6$base_name)
   base_nam <- clean6 %>%
-  mutate(base_name,base_name_clean= gsub("\\s*([(]).*|\\s*([-]).*","",clean6$base_name)) 
+  mutate(base_name_clean= gsub("\\s*([(]).*|\\s*([-]).*","",clean6$base_name)) %>%
+  mutate(base_name_clean= ifelse(grepl("asus flip tp500la",base_name),"ASUS Transformer Book Flip TP500LA",base_name_clean)) %>%  
+  mutate(base_name_clean= ifelse(grepl("asus rog gl702vs",base_name),"ASUS ROG Strix GL702VS",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("asus 14 eeebook",base_name),"asus eeebook 14",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("asus zenbook 3 deluxe ux490ua",base_name),"asus zenbook 3",base_name_clean))
+    
+  
+  base_nam$base_name_clean <- tolower(base_nam$base_name_clean)
   
   base_nam <- base_nam %>%
     mutate(base_name_clean=ifelse(grepl("acer",base_name),str_extract(base_nam$base_name_clean,"^(?=.*\\bacer\\b)(?:\\S+\\s){2}|^(?=.*\\bacer\\b)(?:\\S+){1}"),base_name_clean)) %>%
     mutate(base_name_clean=ifelse(grepl("alienware",base_name),str_extract(base_nam$base_name_clean,"^(?=alienware)(\\S+\\s){2}|^(?=alienware)(\\S+\\s\\S+)"),base_name_clean)) %>%
     mutate(base_name_clean=ifelse(grepl("asus",base_name),str_extract(base_nam$base_name_clean,"^(?=asus)(\\S+\\s){2,3}|^(?=alienware)(\\S+\\s\\S+){1,2}"),base_name_clean)) %>%
   select(brand,base_name,base_name_clean,max_price)
-  
   
   unique(base_nam$base_name_clean)
   unique(base_nam$base_name)
