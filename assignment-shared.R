@@ -125,18 +125,26 @@ clean6[is.na(clean6$gpu_benchmark_score),"gpu_benchmark_score"] <- mean(clean6$g
 #-------Base Name--------------------------------------------------------
 library(stringr)
 
+  clean6$base_name <- tolower(clean6$base_name)
+  
   base_nam <- clean6 %>%
-  mutate(base_name_clean= gsub("\\s*([(]).*|\\s*([-]).*","",clean6$base_name)) %>%
-  mutate(base_name_clean= ifelse(grepl("asus flip tp500la",base_name),"ASUS Transformer Book Flip TP500LA",base_name_clean)) %>%  
-  mutate(base_name_clean= ifelse(grepl("asus rog gl702vs",base_name),"ASUS ROG Strix GL702VS",base_name_clean)) %>%
-  mutate(base_name_clean= ifelse(grepl("asus 14 eeebook",base_name),"asus eeebook 14",base_name_clean)) %>%
-  mutate(base_name_clean= ifelse(grepl("asus zenbook 3 deluxe ux490ua",base_name),"asus zenbook 3",base_name_clean)) %>%
-  mutate(base_name_clean= ifelse(grepl("dell i3558-9136blk",base_name),"Dell Inspiron 15.6 Touch-Screen Laptop Intel Core",base_name_clean)) %>%
-  mutate(base_name_clean= ifelse(grepl("dell g3",base_name),"Dell g",base_name_clean)) %>%
-  mutate(base_name_clean= ifelse(grepl("dell g5",base_name),"Dell g",base_name_clean)) %>%
+  mutate(base_name_clean= base_name) %>%
+  mutate(base_name_clean= ifelse(grepl("asus flip tp500la",base_name_clean),"ASUS Transformer Book Flip TP500LA",base_name_clean)) %>%  
+  mutate(base_name_clean= ifelse(grepl("asus rog gl702vs",base_name_clean),"ASUS ROG Strix GL702VS",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("asus 14 eeebook",base_name_clean),"asus eeebook 14",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("asus zenbook 3 deluxe ux490ua",base_name_clean),"asus zenbook 3",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("dell i3558-9136blk",base_name_clean),"Dell Inspiron 15.6 Touch-Screen Laptop Intel Core",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("dell g3",base_name_clean),"Dell g",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("dell g5",base_name_clean),"Dell g",base_name_clean)) %>%
   mutate(base_name_clean= gsub("^.*dell xps\\S+.*","Dell xps",base_name_clean)) %>%
-  mutate(base_name_clean= ifelse(grepl("dell inspiron chromebook",base_name),"dell chromebook",base_name_clean))
-    
+  mutate(base_name_clean= ifelse(grepl("dell inspiron chromebook",base_name_clean),"dell chromebook",base_name_clean))
+  
+  base_nam <- base_nam %>%
+  mutate(base_name_clean= gsub("\\s*([(]).*|\\s*([-]).*","",base_nam$base_name_clean)) 
+  
+  base_nam <- base_nam %>%
+  mutate(base_name_clean2= ifelse(grepl("hp",base_name) & grepl("x360",base_name),gsub("x360","flip",base_nam$base_name_clean),base_name_clean)) %>%
+  mutate(base_name_clean = base_name_clean2)
   
   base_nam$base_name_clean <- tolower(base_nam$base_name_clean)
   
@@ -145,11 +153,26 @@ library(stringr)
     mutate(base_name_clean=ifelse(grepl("alienware",base_name),str_extract(base_nam$base_name_clean,"(\\S+\\s){2}|^(\\S+\\s\\S+)"),base_name_clean)) %>%
     mutate(base_name_clean=ifelse(grepl("asus",base_name),str_extract(base_nam$base_name_clean,"(\\S+\\s){2,3}|(\\S+\\s\\S+){1,2}"),base_name_clean)) %>%
     mutate(base_name_clean=ifelse(grepl("dell",base_name),str_extract(base_nam$base_name_clean,"^(\\S+\\s){2}|^(\\S+\\s\\S+)"),base_name_clean)) %>%
-  select(brand,base_name,base_name_clean,max_price)
+    mutate(base_name_clean=ifelse(grepl("google",base_name),str_extract(base_nam$base_name_clean,"^(\\S+\\s){2}|^(\\S+\\s\\S+)"),base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("hp",base_name_clean) & !grepl("flip",base_name_clean),str_extract(base_nam$base_name_clean,"^(\\S+\\s){2}|^(\\S+\\s\\S+)|^(\\S+)"),base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("hp",base_name_clean) & grepl("flip",base_name_clean),str_extract(base_nam$base_name_clean,"^(\\S+\\s){3}|^(\\S+\\s\\S+\\s\\S+)|^(\\S+)"),base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("hp\\s\\d+",base_name),"hp",base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("huawei",base_name),str_extract(base_nam$base_name_clean,"^(\\S+\\s){2}|^(\\S+\\s\\S+)"),base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("lg",base_name),str_extract(base_nam$base_name_clean,"^(\\S+\\s){2}|^(\\S+\\s\\S+)"),base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("microsoft",base_name),str_extract(base_nam$base_name_clean,"^(\\w+\\s+){3}|^(\\S+\\s\\S+\\s\\S+)"),base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("msi",base_name),str_extract(base_nam$base_name_clean,"^(\\S+\\s+\\D+)"),base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("prostar",base_name),str_extract(base_nam$base_name_clean,"^(\\S+\\s+\\D+)"),base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("sager",base_name),str_extract(base_nam$base_name_clean,"^(\\S+\\s+\\D+)"),base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("samsung",base_name),str_extract(base_nam$base_name_clean,"^(\\w+\\s+){3}|^(\\S+\\s\\S+\\s\\S+)|^(\\S+\\s\\S+)"),base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("razer",base_name),str_extract(base_nam$base_name_clean,"^(\\w+\\s+){3}|^(\\S+\\s\\S+\\s\\S+)|^(\\S+\\s\\S+)"),base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("jumper",base_name),str_extract(base_nam$base_name_clean,"^(\\S+)"),base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("toshiba",base_name),str_extract(base_nam$base_name_clean,"^(\\S+\\s\\S+)"),base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("lenovo",base_name),str_extract(base_nam$base_name_clean,"^(\\S+\\s){2}|^(\\S+\\s\\S+)|^(\\S+)"),base_name_clean)) %>%
+    mutate(base_name_clean=ifelse(grepl("rca",base_name),str_extract(base_nam$base_name_clean,"^(\\S+\\s){2}|^(\\S+\\s\\S+)|^(\\S+)"),base_name_clean)) %>%
+    select(brand,base_name,base_name_clean,max_price)
   
   unique(base_nam$base_name_clean)
-  unique(base_nam$base_name)
-  
+
 #-------Split Train Data to train/test subsets (80/20 percent) ----------------------
 require(caTools)
 set.seed(741)
