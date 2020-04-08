@@ -138,6 +138,17 @@ clean6 <- clean6 %>%
 clean6 <- clean6 %>%
   mutate(price_percentage_variation_max = (max_price - min_price)/max_price)
 
+# Average price
+clean6 <- clean6 %>%
+  mutate(ave_price = (max_price + min_price)/2)
+
+hist(clean6$price_variation)
+table(clean6$price_variation)
+
+hist(clean6$price_percentage_variation_min)
+table(clean6$price_percentage_variation_min)
+
+clean6[clean6$id == 8789 |clean6$id == 20741,]
 
 #-------Split Train Data to train/test subsets (80/20 percent) --------- // Currently not use because K-Folds creates a validation set
 #require(caTools)
@@ -211,7 +222,6 @@ clean_test3[is.na(clean_test3$gpu_benchmark_score),"gpu_benchmark_score"] <- mea
 
 
 
-
 #--------- Data not normalized ------------------
 
 # Selecting only the features to use
@@ -229,7 +239,7 @@ minPrice_Clean_Training <- data.frame(model.matrix(~., data=minPrice_Clean_Train
 
 #-------- Data normalization -------------------
 
-index_Response <- match(c("max_price", "min_price", "price_variation", "price_percentage_variation_min","price_percentage_variation_max"), names(clean6))
+index_Response <- match(c("max_price", "min_price", "price_variation", "price_percentage_variation_min","price_percentage_variation_max", "ave_price"), names(clean6))
 preProcValues <- preProcess(clean6[-index_Response], method = "range")
 
 trainScaled <- predict(preProcValues, clean6)
@@ -405,11 +415,11 @@ model8_varPrice <- train(price_variation ~ . , data = varPrice_Clean_Training,
 model1_varPrice$results$MAE
 model2_varPrice$results$MAE
 model3_varPrice$results$MAE
-min(model4_varPrice$results$MAE) #This is the best model for the variation, but not the best for max_price
-min(model5_varPrice$results$MAE)
+min(model4_varPrice$results$MAE) #Best model for the variation, but not the best for max_price
+min(model5_varPrice$results$MAE) #2nd best model
 min(model6_varPrice$results$MAE)
-min(model7_varPrice$results$MAE)
-min(model8_varPrice$results$MAE)
+min(model7_varPrice$results$MAE) #4th best model (not much difference between models)
+min(model8_varPrice$results$MAE) #3rd best model
 
 actual_max_price <- maxPrice_Clean_Training %>% select(max_price)
 actual_min_price <- minPrice_Clean_Training %>% select(min_price)
@@ -424,6 +434,8 @@ var_pred5 <- data.frame(predict(model5_varPrice, type = "raw"))
 var_pred6 <- data.frame(predict(model6_varPrice, type = "raw"))
 var_pred7 <- data.frame(predict(model7_varPrice, type = "raw"))
 var_pred8 <- data.frame(predict(model8_varPrice, type = "raw"))
+
+hist(predict(model7_varPrice, type = "raw"))
 
 #Based on min_price
 max_price_pred1 <- min_price_pred+var_pred1
@@ -586,6 +598,96 @@ MAE_minprice_perc_var7 <- mean(abs(actual_min_price$min_price-min_price_perc_pre
 print(min(model7_max$results$MAE)+MAE_minprice_perc_var7) #Using max_price as base price (233.39)
 
 
+#------------- Models to predict average price -------------
+
+#---- Data not normalized -----
+# For price_variation
+avePrice_Clean_Training_prev <- clean6 %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score, ave_price)
+avePrice_Clean_Training <- data.frame(model.matrix(~., data=avePrice_Clean_Training_prev))
+
+#------ Normalized data--------
+# For price_variation
+avePrice_Norm_Training_prev <- trainScaled %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score, ave_price)
+avePrice_Norm_Training <- data.frame(model.matrix(~., data=avePrice_Norm_Training_prev))
+
+#------ Models (price variation) -----------
+##### Train the model 1 (Linear regression)
+model1_avePrice <- train(ave_price ~ . , data = avePrice_Norm_Training,
+                         method = "lm", trControl = train.control, metric = "MAE") #warning a lot of features
+
+##### Train the model 2 (Generalized Linear Model without func specified -> could be improved)
+model2_avePrice <- train(ave_price ~ . , data = avePrice_Norm_Training,
+                         method = "glm", trControl = train.control, metric = "MAE") #warning a lot of features
+
+##### Train the model 3 (GLM with Step AIC)
+model3_avePrice <- train(ave_price ~ . , data = avePrice_Norm_Training,
+                         method = "glmStepAIC", trControl = train.control, metric = "MAE")
+
+##### Train the model 4 (Elastic net (glm))
+model4_avePrice <- train(ave_price ~ . , data = avePrice_Norm_Training,
+                         method = "glmnet", trControl = train.control, metric = "MAE")
+
+##### Train the model 5 Boosted Tree
+model5_avePrice <- train(ave_price ~ . , data = avePrice_Clean_Training,
+                         method = "bstTree", trControl = train.control, metric = "MAE")
+
+##### Train the model 6 eXtreme Gradient Boosting
+model6_avePrice <- train(ave_price ~ . , data = avePrice_Clean_Training,
+                         method = "xgbTree", trControl = train.control, metric = "MAE")
+
+##### Train the model 7 Parallel Random Forest  <---------------BEST MODEL SO FAR
+model7_avePrice <- train(ave_price ~ . , data = avePrice_Clean_Training,
+                         method = "parRF", trControl = train.control, metric = "MAE")
+
+##### Train the model 8 Stochastic Gradient Boosting # warning for some brands (few observations)
+model8_avePrice <- train(ave_price ~ . , data = avePrice_Clean_Training,
+                         method = "gbm", trControl = train.control, metric = "MAE")
+
+
+model1_avePrice$results$MAE
+model2_avePrice$results$MAE
+model3_avePrice$results$MAE
+min(model4_avePrice$results$MAE) 
+min(model5_avePrice$results$MAE)
+min(model6_avePrice$results$MAE)
+min(model7_avePrice$results$MAE) #Best model
+min(model8_avePrice$results$MAE)
+
+actual_max_price <- maxPrice_Clean_Training %>% select(max_price)
+actual_min_price <- minPrice_Clean_Training %>% select(min_price)
+
+ave_pred7 <- data.frame(predict(model7_avePrice, type = "raw"))
+
+#Based on price variation model 4
+min_aveprice_pred4 <- ave_pred7-(var_pred4/2)
+names(min_aveprice_pred4) <- "min_price_pred"
+max_aveprice_pred4 <- ave_pred7+(var_pred4/2)
+names(max_aveprice_pred4) <- "max_price_pred"
+
+#Based on price variation model 5
+min_aveprice_pred5 <- ave_pred7-(var_pred5/2)
+names(min_aveprice_pred5) <- "min_price_pred"
+max_aveprice_pred5 <- ave_pred7+(var_pred5/2)
+names(max_aveprice_pred5) <- "max_price_pred"
+
+#Based on price variation model 7
+min_aveprice_pred7 <- ave_pred7-(var_pred7/2)
+names(min_aveprice_pred7) <- "min_price_pred"
+max_aveprice_pred7 <- ave_pred7+(var_pred7/2)
+names(max_aveprice_pred7) <- "max_price_pred"
+
+#Based on price variation model 8
+min_aveprice_pred8 <- ave_pred7-(var_pred8/2)
+names(min_aveprice_pred8) <- "min_price_pred"
+max_aveprice_pred8 <- ave_pred7+(var_pred8/2)
+names(max_aveprice_pred8) <- "max_price_pred"
+
+
+mean(abs(actual_max_price$max_price-max_aveprice_pred4$max_price_pred))+ mean(abs(actual_min_price$min_price-min_aveprice_pred4$min_price_pred)) 
+mean(abs(actual_max_price$max_price-max_aveprice_pred5$max_price_pred))+ mean(abs(actual_min_price$min_price-min_aveprice_pred5$min_price_pred)) 
+mean(abs(actual_max_price$max_price-max_aveprice_pred7$max_price_pred))+ mean(abs(actual_min_price$min_price-min_aveprice_pred7$min_price_pred)) #Best model
+mean(abs(actual_max_price$max_price-max_aveprice_pred8$max_price_pred))+ mean(abs(actual_min_price$min_price-min_aveprice_pred8$min_price_pred)) 
+
 
 # -------- Prediction of test data --------------------
 
@@ -666,6 +768,21 @@ results
 
 write.csv(results, file = "Model 8(PRF with price variation base on max_price).csv", row.names = F)
 
+# --- With average price and price difference ---- 
+
+bothModels4 <- list(model7_varPrice, model7_avePrice)
+pred_prev4 <- data.frame(predict(bothModels4, Price_Test, type = "raw")) #Parallel Random Forest (best so far)
+names(pred_prev4) <- c("Price_dif", "Price_average")
+
+pred4 <- data.frame(pred_prev4$Price_average - (pred_prev4$Price_dif/2))
+names(pred4) <- "MIN"
+pred4 <- pred4 %>% mutate(MAX = pred_prev4$Price_average + (pred_prev4$Price_dif/2))
+pred4 
+
+results <- cbind(id_test,pred4)
+results
+
+write.csv(results, file = "Model 9(PRF with price average and variation).csv", row.names = F)
 
 # ------- Other models already tried ---------------
 
