@@ -125,7 +125,6 @@ clean6[is.na(clean6$gpu_benchmark_score),"gpu_benchmark_score"] <- mean(clean6$g
 
 #-------Base Name--------------------------------------------------------
 library(stringr)
-
 clean6$base_name <- tolower(clean6$base_name)
 
 base_nam <- clean6 %>%
@@ -152,6 +151,7 @@ base_nam$base_name_clean <- tolower(base_nam$base_name_clean)
 base_nam <- base_nam %>%
   mutate(base_name_clean=ifelse(grepl("acer",base_name),str_extract(base_nam$base_name_clean,"^(?=.*\\bacer\\b)(?:\\S+\\s){2}|^(?=.*\\bacer\\b)(?:\\S+){1}"),base_name_clean)) %>%
   mutate(base_name_clean=ifelse(grepl("alienware",base_name),str_extract(base_nam$base_name_clean,"(\\S+\\s){2}|^(\\S+\\s\\S+)"),base_name_clean)) %>%
+  mutate(base_name_clean=ifelse(grepl("alienware\\s\\D+\\d+",base_name),str_extract(base_nam$base_name_clean,"\\S+\\s\\D+"),base_name_clean)) %>%
   mutate(base_name_clean=ifelse(grepl("asus",base_name),str_extract(base_nam$base_name_clean,"(\\S+\\s){2,3}|(\\S+\\s\\S+){1,2}"),base_name_clean)) %>%
   mutate(base_name_clean=ifelse(grepl("dell",base_name),str_extract(base_nam$base_name_clean,"^(\\S+\\s){2}|^(\\S+\\s\\S+)"),base_name_clean)) %>%
   mutate(base_name_clean=ifelse(grepl("google",base_name),str_extract(base_nam$base_name_clean,"^(\\S+\\s){2}|^(\\S+\\s\\S+)"),base_name_clean)) %>%
@@ -173,7 +173,7 @@ base_nam <- base_nam %>%
   select(brand,base_name,base_name_clean,max_price)
 
 unique(base_nam$base_name_clean)
-
+base_nam$base_name_clean <- str_squish(base_nam$base_name_clean)
 clean6$base_name_clean <- base_nam$base_name_clean
 #--------- Price variation and Percentage change -------------------
 
@@ -284,6 +284,7 @@ base_nam_test <- clean_test3 %>%
   mutate(base_name_clean= ifelse(grepl("dell g3",base_name_clean),"Dell g",base_name_clean)) %>%
   mutate(base_name_clean= ifelse(grepl("dell g5",base_name_clean),"Dell g",base_name_clean)) %>%
   mutate(base_name_clean= gsub("^.*dell xps\\S+.*","Dell xps",base_name_clean)) %>%
+  mutate(base_name_clean= gsub("delll","Dell",base_name_clean)) %>%
   mutate(base_name_clean= ifelse(grepl("dell inspiron chromebook",base_name_clean),"dell chromebook",base_name_clean))
 
 base_nam_test <- base_nam_test %>%
@@ -298,6 +299,7 @@ base_nam_test$base_name_clean <- tolower(base_nam_test$base_name_clean)
 base_nam_test <- base_nam_test %>%
   mutate(base_name_clean=ifelse(grepl("acer",base_name),str_extract(base_nam_test$base_name_clean,"^(?=.*\\bacer\\b)(?:\\S+\\s){2}|^(?=.*\\bacer\\b)(?:\\S+){1}"),base_name_clean)) %>%
   mutate(base_name_clean=ifelse(grepl("alienware",base_name),str_extract(base_nam_test$base_name_clean,"(\\S+\\s){2}|^(\\S+\\s\\S+)"),base_name_clean)) %>%
+  mutate(base_name_clean=ifelse(grepl("alienware\\s\\D+\\d+",base_name),str_extract(base_nam_test$base_name_clean,"\\S+\\s\\D+"),base_name_clean)) %>%
   mutate(base_name_clean=ifelse(grepl("asus",base_name),str_extract(base_nam_test$base_name_clean,"(\\S+\\s){2,3}|(\\S+\\s\\S+){1,2}"),base_name_clean)) %>%
   mutate(base_name_clean=ifelse(grepl("dell",base_name),str_extract(base_nam_test$base_name_clean,"^(\\S+\\s){2}|^(\\S+\\s\\S+)"),base_name_clean)) %>%
   mutate(base_name_clean=ifelse(grepl("google",base_name),str_extract(base_nam_test$base_name_clean,"^(\\S+\\s){2}|^(\\S+\\s\\S+)"),base_name_clean)) %>%
@@ -320,8 +322,10 @@ base_nam_test <- base_nam_test %>%
 
 unique(base_nam_test$base_name_clean)
 
+base_nam_test$base_name_clean <- str_squish(base_nam_test$base_name_clean)
 clean_test3$base_name_clean <- base_nam_test$base_name_clean
 
+clean_test3$base_name_clean[!(clean_test3$base_name_clean %in% clean6$base_name_clean)]
 #--------- Data not normalized ------------------
 
 # Selecting only the features to use
