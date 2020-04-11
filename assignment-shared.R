@@ -67,7 +67,7 @@ clean4 <- clean4 %>%
   mutate(resolution= ifelse(pixels_x==1920 & pixels_y==1200,"FHD",resolution)) %>%
   mutate(resolution= ifelse(pixels_x==2256 & pixels_y==1504,"PixelSense",resolution)) %>%
   mutate(resolution= ifelse(pixels_x==2736 & pixels_y==1824,"PixelSense",resolution)) %>%
-  mutate(resolution= ifelse(pixels_x==1440 & pixels_y==900,"Retina",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==1440 & pixels_y==900,"airhd",resolution)) %>%
   mutate(resolution= ifelse(pixels_x==3240 & pixels_y==2160,"PixelSense",resolution))
   
 ##------------------Screen Size for TRAIN DATA---------------------------------------------------
@@ -82,7 +82,21 @@ clean4 <- clean4 %>%
   mutate(screen_size= ifelse(screen_size>=15.7 & screen_size<=16.6,16,screen_size)) %>%
   mutate(screen_size= ifelse(screen_size>=16.7 & screen_size<=17.6,17,screen_size)) %>%
   mutate(screen_size= ifelse(screen_size>=17.7 & screen_size<=18.6,18,screen_size))
-  
+
+##---------------------Display Type---------------------------------------------
+clean4$name <- tolower(clean6$name)
+clean4 <- clean4 %>%
+  mutate(display_type= "unkonwn") %>%
+  mutate(display_type= ifelse(grepl("lcd",name),"lcd",display_type)) %>%
+  mutate(display_type= ifelse(grepl("led",name),"led",display_type)) %>%
+  mutate(display_type= ifelse(grepl("oled",name),"oled",display_type)) %>%
+  mutate(display_type= ifelse(grepl("ips",name),"ips",display_type)) %>%
+  mutate(display_type= ifelse(brand=="Apple" & resolution=="Retina","ips",display_type)) %>%
+  mutate(display_type= ifelse(brand=="Apple" & (resolution=="HD"|resolution=="airhd"),"led",display_type)) %>%
+  mutate(display_type= ifelse(grepl("Microsoft Surface",base_name),"ips",display_type))
+
+lcds <- clean4 %>%
+  select(weight)
 ##---------------------CPU Scores-----------------------------------------------
 clean4<-clean4 %>%
   mutate(cpu_details,cpu_clean= gsub("\\s*(\\d[.]\\d*)\\s*(GHz|ghz|Ghz|Ghz|gHz).*","",clean4$cpu_details))
@@ -199,13 +213,21 @@ clean6 <- clean6 %>%
                        grepl("2-in-1",base_name)|grepl("x360",base_name)|grepl("transformer",base_name)|grepl("convertible",base_name)|grepl("flip",base_name)
                          ,1,0))
 
+##------------------weight for Train Data---------------------------------------------------
+clean6 <- clean6 %>%
+  mutate(weight_clean= ifelse(weight<3,"Up to 3 Pounds",weight)) %>%
+  mutate(weight_clean= ifelse(weight>=3 & weight<4,"3 to 3.9 Pounds",weight_clean)) %>%
+  mutate(weight_clean= ifelse(weight>=4 & weight<5,"4 to 4.9 Pounds",weight_clean)) %>%
+  mutate(weight_clean= ifelse(weight>=5 & weight<6,"5 to 5.9 Pounds",weight_clean)) %>%
+  mutate(weight_clean= ifelse(weight>=6 & weight<7,"6 to 6.9 Pounds",weight_clean)) %>%
+  mutate(weight_clean= ifelse(weight>=7 & weight<8,"7 to 7.9 Pounds",weight_clean)) %>%
+  mutate(weight_clean= ifelse(weight>=8 ,"8 Pounds & Above",weight_clean))
+
 #--------- Factorising Train Data-----------------------------------------------
-clean6$ssd<-as.factor(clean6$ssd)
-clean6$storage<-as.factor(clean6$storage)
 clean6$screen_size <- as.factor(clean6$screen_size)
-clean6$ram <-as.factor(clean6$ram)
 clean6$os <-as.factor(clean6$os)
 clean6$resolution <- as.factor(clean6$resolution)
+clean6$weight_clean <- as.factor(clean6$weight_clean)
 
 #--------- Price variation and Percentage change -------------------
 
@@ -288,7 +310,7 @@ clean_test1 <- clean_test1 %>%
   mutate(resolution= ifelse(pixels_x==1920 & pixels_y==1200,"FHD",resolution)) %>%
   mutate(resolution= ifelse(pixels_x==2256 & pixels_y==1504,"PixelSense",resolution)) %>%
   mutate(resolution= ifelse(pixels_x==2736 & pixels_y==1824,"PixelSense",resolution)) %>%
-  mutate(resolution= ifelse(pixels_x==1440 & pixels_y==900,"Retina",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==1440 & pixels_y==900,"airhd",resolution)) %>%
   mutate(resolution= ifelse(pixels_x==3240 & pixels_y==2160,"PixelSense",resolution)) %>%
   mutate(resolution= ifelse(pixels_x==1800 & pixels_y==1200,"PixelSense",resolution))
 
@@ -436,20 +458,27 @@ clean_test3 <- clean_test3 %>%
                          grepl("2-in-1",base_name)|grepl("x360",base_name)|grepl("transformer",base_name)|grepl("convertible",base_name)|grepl("flip",base_name)
                        ,1,0))
 
+##------------------weight for Test Data---------------------------------------------------
+clean_test3 <- clean_test3 %>%
+  mutate(weight_clean= ifelse(weight<3,"Up to 3 Pounds",weight)) %>%
+  mutate(weight_clean= ifelse(weight>=3 & weight<4,"3 to 3.9 Pounds",weight_clean)) %>%
+  mutate(weight_clean= ifelse(weight>=4 & weight<5,"4 to 4.9 Pounds",weight_clean)) %>%
+  mutate(weight_clean= ifelse(weight>=5 & weight<6,"5 to 5.9 Pounds",weight_clean)) %>%
+  mutate(weight_clean= ifelse(weight>=6 & weight<7,"6 to 6.9 Pounds",weight_clean)) %>%
+  mutate(weight_clean= ifelse(weight>=7 & weight<8,"7 to 7.9 Pounds",weight_clean)) %>%
+  mutate(weight_clean= ifelse(weight>=8 ,"8 Pounds & Above",weight_clean))
+
 #--------- Factorising Test Data-----------------------------------------------
-clean_test3$ssd<-as.factor(clean_test3$ssd)
-clean_test3$storage<-as.factor(clean_test3$storage)
 clean_test3$screen_size <- as.factor(clean_test3$screen_size)
-clean_test3$ram <-as.factor(clean_test3$ram)
 clean_test3$os <-as.factor(clean_test3$os)
-clean_test1$resolution <- as.factor(clean_test1$resolution)
+clean_test3$resolution <- as.factor(clean_test3$resolution)
+clean_test3$weight_clean <- as.factor(clean_test3$weight_clean)
 
 #--------- Data not normalized ------------------
 
 # Selecting only the features to use
 #Features: brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution(pixels_x*pixels_y), discrete_gpu, 
 #          cpu_benchmark_score, gpu_benchmark_score
-
 
 maxPrice_Clean_Training_prev <- clean6 %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score, max_price)
 maxPrice_Clean_Training <- data.frame(model.matrix(~., data=maxPrice_Clean_Training_prev))
