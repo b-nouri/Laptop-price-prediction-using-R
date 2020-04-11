@@ -13,7 +13,6 @@ library(VIM)
 library(DMwR)
 library(caret)
 library(PerformanceAnalytics)
-library(forcats)
 
 #--------Load Data-------------------------------------------
 train_df <- read.csv("https://raw.githubusercontent.com/behnouri/lprice-prediction/master/train.csv", na.strings = c("", "NA"))
@@ -32,50 +31,52 @@ new.cpu <- data.frame(cpu_model = c("Intel Pentium Gold 4415Y", "Intel Pentium G
 cpu_df <- rbind(cpu_df, new.cpu)
 
 ###############################Prepare Train Data#############################################
-head(train_df)
-sum(is.na(train_df))
 colnames(train_df)[12] <- "dkeyboard"
 colnames(train_df)[1] <- "id"
 
-
-#--------------------NA Values for TRAIN DATA------------------------------------
-aggr(x = clean2[,8:20])
-glimpse(clean2)
-clean3_knn <- knnImputation(clean2)
-aggr(x=clean3_knn)
-
-clean3_knn %>%
-  summarise_if(is.factor,nlevels)
-vis_miss(train_df,cluster= TRUE)
-gg_miss_var(train_df)
-gg_miss_case(train_df)
-
+##--------------------NA Values for TRAIN DATA------------------------------------
+##--------------------Remove Rows with more than 4 nulls--------------------------
 rown_four_nulls <- as.integer(rownames(train_df[rowSums(is.na(train_df[])) == 4,]))
 clean2 <- train_df[-c(rown_four_nulls),]
 gg_miss_var(clean2)
 gg_miss_case(clean2)
 
+##-------------------Use Knn for imputing null values-----------------------------
+aggr(x = clean2[,8:20])
+clean3_knn <- knnImputation(clean2)
+aggr(x=clean3_knn)
+
 ##-----------------Screen Surface for TRAIN DATA----------------------------------------------------
-clean2$screen_surface <- mapvalues(clean2$screen_surface,c("glossy", "matte"), c("Glossy", "Matte"))
+clean3_knn$screen_surface <- tolower(clean3_knn$screen_surface)
 
 ##----------------Screen Resolution for TRAIN DATA--------------------------------------------
 clean4 <- clean3_knn %>%
-  mutate(resolution = pixels_x * pixels_y)
+  mutate(resolution = NA)
 
-df_res <- unique(clean4[c("screen_size","pixels_x","pixels_y","resolution")])
-df_res %>%
-  arrange(desc(resolution))
-
-ggplot(clean4,aes(x=resolution,y=max_price,color=screen_size)) +
-  geom_point() +
-  scale_color_gradient(low="blue", high="red")
-
-cor(clean4$resolution,clean4$max_price)
-cor(clean4$resolution,clean4$max_price,method = "spearman")
-cor(clean4$screen_size,clean4$max_price)
-
-clean4[clean4$pixels_x == 3840, c("brand","base_name","screen_size","pixels_x","pixels_y")]
-
+clean4 <- clean4 %>%
+  mutate(resolution= ifelse(pixels_x==1366 & pixels_y==768,"HD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==1600 & pixels_y==900,"HD+",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==1920 & pixels_y==1080,"FHD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==2304 & pixels_y==1440,"Retina",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==2560 & pixels_y==1440,"QHD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==2560 & pixels_y==1600,"Retina",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==2880 & pixels_y==1800,"Retina",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==3000 & pixels_y==2000,"PixelSense",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==3200 & pixels_y==1800,"QHD+",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==3840 & pixels_y==2160,"UHD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==1920 & pixels_y==1280,"FHD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==2160 & pixels_y==1440,"FHD+",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==1280 & pixels_y==800,"HD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==1920 & pixels_y==1280,"FHD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==2400 & pixels_y==1600,"QHD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==2736 & pixels_y==1824,"UHD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==3072 & pixels_y==1920,"Retina",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==1920 & pixels_y==1200,"FHD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==2256 & pixels_y==1504,"PixelSense",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==2736 & pixels_y==1824,"PixelSense",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==1440 & pixels_y==900,"Retina",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==3240 & pixels_y==2160,"PixelSense",resolution))
+  
 ##------------------Screen Size for TRAIN DATA---------------------------------------------------
 clean4 <- clean4 %>%
   mutate(screen_size= ifelse(screen_size>=10 & screen_size<=10.7,10,screen_size)) %>%
@@ -89,8 +90,6 @@ clean4 <- clean4 %>%
   mutate(screen_size= ifelse(screen_size>=16.7 & screen_size<=17.6,17,screen_size)) %>%
   mutate(screen_size= ifelse(screen_size>=17.7 & screen_size<=18.6,18,screen_size))
   
-clean4$screen_size <- as.factor(clean4$screen_size)
-
 ##---------------------CPU Scores-----------------------------------------------
 clean4<-clean4 %>%
   mutate(cpu_details,cpu_clean= gsub("\\s*(\\d[.]\\d*)\\s*(GHz|ghz|Ghz|Ghz|gHz).*","",clean4$cpu_details))
@@ -206,35 +205,17 @@ clean6 <- clean6 %>%
   mutate(x360 = ifelse(grepl("2-in-1",name)|grepl("x360",name)|grepl("transformer",name)|grepl("convertible",name)|grepl("flip",name)|
                        grepl("2-in-1",base_name)|grepl("x360",base_name)|grepl("transformer",base_name)|grepl("convertible",base_name)|grepl("flip",base_name)
                          ,1,0))
-#--------- os details ---------------------------------------------
 
-os_details1<- clean6 %>%
-  select(os,os_details,max_price) %>%
-  filter(os_details=="Windows 10 Pro"|os_details=="Windows 10 Home"|
-         os_details=="Windows 8.1"|os_details=="Windows 7"|
-           os_details=="Windows 10 S"|os_details=="Windows 10")
-  ggplot(os_details1, aes(x=os_details,y=max_price)) +
-  geom_boxplot()
+#--------- Factorising Train Data-----------------------------------------------
+clean6<- clean6 %>%
+  transmute_all(tolower)
 
-cor(clean4$resolution,clean4$max_price,method = "spearman")
-cor(clean4$screen_size,clean4$max_price)
-
-sort(unique(clean4$screen_size))
-
-
-library(dplyr)
-library(tidyr)
-clean4 <- as_tibble(clean4)
-clean4 %>%
-  filter(!is.na(os_details)) %>%    # Using "data", filter out all rows with NAs in aa 
-  group_by(os_details) %>%          # Then, with the filtered data, group it by "bb"
-  summarise(count_o = n()) %>%
-  arrange(count_o)
-  
-  
-  select(os,os_details) %>% 
-  group_by(os_details) %>% 
-  summarise(n= n())
+clean6$ssd<-as.factor(clean6$ssd)
+clean6$storage<-as.factor(clean6$storage)
+clean6$screen_size <- as.factor(clean6$screen_size)
+clean6$ram <-as.factor(clean6$ram)
+clean6$os <-as.factor(clean6$os)
+clean6$resolution <- as.factor(clean6$resolution)
 
 #--------- Price variation and Percentage change -------------------
 
@@ -277,16 +258,49 @@ glimpse(test_df)
 sum(is.na(test_df))
 aggr(x=test_df[,6:20])
 clean_test <- test_df
-clean_test$screen_surface <- mapvalues(clean_test$screen_surface,c("glossy","matte"),c("Glossy","Matte"))
 
+##------------Knn imputation of tet data---------------------------------------
 clean_test_knn <- knnImputation(clean_test)
 aggr(x=clean_test_knn)
 
-clean_test_knn %>%
-  summarise_if(is.factor,nlevels)
+##----------------Screen Surface for Test Data------------------------
+clean_test$screen_surface <- tolower(clean_test$screen_surface)
 
-clean_test1 <- clean_test_knn %>%
-  mutate(resolution = pixels_x * pixels_y)
+##----------------Screen Resolution for TEST DATA--------------------------------------------
+#---outlier width and lenght----------------------
+clean_test1<-clean_test
+clean_test1[133,"pixels_x"] <- 1366
+clean_test1[133,"pixels_y"] <- 768
+clean_test1[203,"pixels_x"] <- 1366
+clean_test1[203,"pixels_y"] <- 768
+
+clean_test1 <- clean_test1 %>%
+  mutate(resolution = NA)
+
+clean_test1 <- clean_test1 %>%
+  mutate(resolution= ifelse(pixels_x==1366 & pixels_y==768,"HD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==1600 & pixels_y==900,"HD+",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==1920 & pixels_y==1080,"FHD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==2304 & pixels_y==1440,"Retina",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==2560 & pixels_y==1440,"QHD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==2560 & pixels_y==1600,"Retina",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==2880 & pixels_y==1800,"Retina",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==3000 & pixels_y==2000,"PixelSense",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==3200 & pixels_y==1800,"QHD+",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==3840 & pixels_y==2160,"UHD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==1920 & pixels_y==1280,"FHD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==2160 & pixels_y==1440,"FHD+",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==1280 & pixels_y==800,"HD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==1920 & pixels_y==1280,"FHD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==2400 & pixels_y==1600,"QHD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==2736 & pixels_y==1824,"UHD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==3072 & pixels_y==1920,"Retina",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==1920 & pixels_y==1200,"FHD",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==2256 & pixels_y==1504,"PixelSense",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==2736 & pixels_y==1824,"PixelSense",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==1440 & pixels_y==900,"Retina",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==3240 & pixels_y==2160,"PixelSense",resolution)) %>%
+  mutate(resolution= ifelse(pixels_x==1800 & pixels_y==1200,"PixelSense",resolution))
 
 ##------------------Screen Size for TEST DATA---------------------------------------------------
 clean_test1 <- clean_test1 %>%
@@ -300,8 +314,6 @@ clean_test1 <- clean_test1 %>%
   mutate(screen_size= ifelse(screen_size>=15.7 & screen_size<=16.6,16,screen_size)) %>%
   mutate(screen_size= ifelse(screen_size>=16.7 & screen_size<=17.6,17,screen_size)) %>%
   mutate(screen_size= ifelse(screen_size>=17.7 & screen_size<=18.6,18,screen_size))
-
-clean_test1$screen_size <- as.factor(clean_test1$screen_size)
 
 #--------------CPU Scores for test data -----------------------------------------
 clean_test1 <-clean_test1 %>%
@@ -434,8 +446,16 @@ clean_test3 <- clean_test3 %>%
                          grepl("2-in-1",base_name)|grepl("x360",base_name)|grepl("transformer",base_name)|grepl("convertible",base_name)|grepl("flip",base_name)
                        ,1,0))
 
-#--------- os_details -----------------------------------------------------------
+#--------- Factorising Test Data-----------------------------------------------
+clean_test3<- clean_test3 %>%
+  transmute_all(tolower)
 
+clean_test3$ssd<-as.factor(clean_test3$ssd)
+clean_test3$storage<-as.factor(clean_test3$storage)
+clean_test3$screen_size <- as.factor(clean_test3$screen_size)
+clean_test3$ram <-as.factor(clean_test3$ram)
+clean_test3$os <-as.factor(clean_test3$os)
+clean_test1$resolution <- as.factor(clean_test1$resolution)
 
 #--------- Data not normalized ------------------
 
