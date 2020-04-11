@@ -84,7 +84,7 @@ clean4 <- clean4 %>%
   mutate(screen_size= ifelse(screen_size>=17.7 & screen_size<=18.6,18,screen_size))
 
 ##---------------------Display Type---------------------------------------------
-clean4$name <- tolower(clean6$name)
+clean4$name <- tolower(clean4$name)
 clean4 <- clean4 %>%
   mutate(display_type= "unkonwn") %>%
   mutate(display_type= ifelse(grepl("lcd",name),"lcd",display_type)) %>%
@@ -95,8 +95,6 @@ clean4 <- clean4 %>%
   mutate(display_type= ifelse(brand=="Apple" & (resolution=="HD"|resolution=="airhd"),"led",display_type)) %>%
   mutate(display_type= ifelse(grepl("Microsoft Surface",base_name),"ips",display_type))
 
-lcds <- clean4 %>%
-  select(weight)
 ##---------------------CPU Scores-----------------------------------------------
 clean4<-clean4 %>%
   mutate(cpu_details,cpu_clean= gsub("\\s*(\\d[.]\\d*)\\s*(GHz|ghz|Ghz|Ghz|gHz).*","",clean4$cpu_details))
