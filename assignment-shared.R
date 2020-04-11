@@ -1,10 +1,3 @@
-#---------Setup Libraries------------------------------------
-#install.packages("tidyverse")
-#install.packages("naniar")
-#install.packages("VIM")
-#install.packages("DMwR")
-#install.packages("caret")
-
 #---------Load Libraries ------------------------------------
 library(plyr)
 library(tidyverse)
@@ -207,9 +200,6 @@ clean6 <- clean6 %>%
                          ,1,0))
 
 #--------- Factorising Train Data-----------------------------------------------
-clean6<- clean6 %>%
-  transmute_all(tolower)
-
 clean6$ssd<-as.factor(clean6$ssd)
 clean6$storage<-as.factor(clean6$storage)
 clean6$screen_size <- as.factor(clean6$screen_size)
@@ -447,9 +437,6 @@ clean_test3 <- clean_test3 %>%
                        ,1,0))
 
 #--------- Factorising Test Data-----------------------------------------------
-clean_test3<- clean_test3 %>%
-  transmute_all(tolower)
-
 clean_test3$ssd<-as.factor(clean_test3$ssd)
 clean_test3$storage<-as.factor(clean_test3$storage)
 clean_test3$screen_size <- as.factor(clean_test3$screen_size)
