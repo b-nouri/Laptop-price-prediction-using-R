@@ -13,6 +13,7 @@ library(VIM)
 library(DMwR)
 library(caret)
 library(PerformanceAnalytics)
+library(forcats)
 
 #--------Load Data-------------------------------------------
 train_df <- read.csv("https://raw.githubusercontent.com/behnouri/lprice-prediction/master/train.csv", na.strings = c("", "NA"))
@@ -30,25 +31,14 @@ new.cpu <- data.frame(cpu_model = c("Intel Pentium Gold 4415Y", "Intel Pentium G
                       cpu_benchmark_score = c(3800, 3900))
 cpu_df <- rbind(cpu_df, new.cpu)
 
-#--------Prepare Train Data---------------------------------
+###############################Prepare Train Data#############################################
 head(train_df)
 sum(is.na(train_df))
 colnames(train_df)[12] <- "dkeyboard"
 colnames(train_df)[1] <- "id"
 
 
-vis_miss(train_df,cluster= TRUE)
-gg_miss_var(train_df)
-gg_miss_case(train_df)
-
-
-rown_four_nulls <- as.integer(rownames(train_df[rowSums(is.na(train_df[])) == 4,]))
-clean2 <- train_df[-c(rown_four_nulls),]
-gg_miss_var(clean2)
-gg_miss_case(clean2)
-
-clean2$screen_surface <- mapvalues(clean2$screen_surface,c("glossy", "matte"), c("Glossy", "Matte"))
-
+#--------------------NA Values for TRAIN DATA------------------------------------
 aggr(x = clean2[,8:20])
 glimpse(clean2)
 clean3_knn <- knnImputation(clean2)
@@ -56,7 +46,19 @@ aggr(x=clean3_knn)
 
 clean3_knn %>%
   summarise_if(is.factor,nlevels)
+vis_miss(train_df,cluster= TRUE)
+gg_miss_var(train_df)
+gg_miss_case(train_df)
 
+rown_four_nulls <- as.integer(rownames(train_df[rowSums(is.na(train_df[])) == 4,]))
+clean2 <- train_df[-c(rown_four_nulls),]
+gg_miss_var(clean2)
+gg_miss_case(clean2)
+
+##-----------------Screen Surface for TRAIN DATA----------------------------------------------------
+clean2$screen_surface <- mapvalues(clean2$screen_surface,c("glossy", "matte"), c("Glossy", "Matte"))
+
+##----------------Screen Resolution for TRAIN DATA--------------------------------------------
 clean4 <- clean3_knn %>%
   mutate(resolution = pixels_x * pixels_y)
 
@@ -68,22 +70,28 @@ ggplot(clean4,aes(x=resolution,y=max_price,color=screen_size)) +
   geom_point() +
   scale_color_gradient(low="blue", high="red")
 
-
 cor(clean4$resolution,clean4$max_price)
 cor(clean4$resolution,clean4$max_price,method = "spearman")
 cor(clean4$screen_size,clean4$max_price)
 
-sort(unique(clean4$screen_size))
-
-clean4 %>%
-  select(screen_size) %>%
-  table()
-
-
 clean4[clean4$pixels_x == 3840, c("brand","base_name","screen_size","pixels_x","pixels_y")]
 
+##------------------Screen Size for TRAIN DATA---------------------------------------------------
+clean4 <- clean4 %>%
+  mutate(screen_size= ifelse(screen_size>=10 & screen_size<=10.7,10,screen_size)) %>%
+  mutate(screen_size= ifelse(screen_size>=10.8 & screen_size<=11.7,11,screen_size)) %>%
+  mutate(screen_size= ifelse(screen_size>=11.8 & screen_size<=12.6,12,screen_size)) %>%
+  mutate(screen_size= ifelse(screen_size>=12.7 & screen_size<=13.6,13,screen_size)) %>%
+  mutate(screen_size= ifelse(screen_size>=13.7 & screen_size<=14.6,14,screen_size)) %>%
+  mutate(screen_size= ifelse(screen_size>=13.7 & screen_size<=14.6,14,screen_size)) %>%
+  mutate(screen_size= ifelse(screen_size>=14.7 & screen_size<=15.6,15,screen_size)) %>%
+  mutate(screen_size= ifelse(screen_size>=15.7 & screen_size<=16.6,16,screen_size)) %>%
+  mutate(screen_size= ifelse(screen_size>=16.7 & screen_size<=17.6,17,screen_size)) %>%
+  mutate(screen_size= ifelse(screen_size>=17.7 & screen_size<=18.6,18,screen_size))
+  
+clean4$screen_size <- as.factor(clean4$screen_size)
 
-#--------------CPU Scores-----------------------------------------------
+##---------------------CPU Scores-----------------------------------------------
 clean4<-clean4 %>%
   mutate(cpu_details,cpu_clean= gsub("\\s*(\\d[.]\\d*)\\s*(GHz|ghz|Ghz|Ghz|gHz).*","",clean4$cpu_details))
 
@@ -98,9 +106,7 @@ clean5$cpu_benchmark_score[is.na(clean5$cpu_benchmark_score)] <- 500
 clean5$cpu_benchmark_score[clean5$cpu_details=="Intel Pentium Gold 4415Y"] <- 3800
 clean5$cpu_model[is.na(clean5$cpu_model)] <- "other"
 
-
-
-#--------------GPU Scores-----------------------------------------------
+###--------------GPU Scores for TRAIN DATA-----------------------------------------------
 clean6 <- mutate(clean5, gpu = ifelse(discrete_gpu == 0, 0,as.character(gpu)))
 
 clean6<-clean6 %>%
@@ -128,7 +134,7 @@ gpu_null <- clean6 %>%
 
 clean6[is.na(clean6$gpu_benchmark_score),"gpu_benchmark_score"] <- mean(clean6$gpu_benchmark_score,na.rm=TRUE)
 
-#-------Base Name--------------------------------------------------------
+##-------------------Base Name for TRAIN DATA--------------------------------------------------------
 library(stringr)
 clean6$base_name <- tolower(clean6$base_name)
 clean6$name <- tolower(clean6$name)
@@ -231,40 +237,40 @@ clean4 %>%
   summarise(n= n())
 
 #--------- Price variation and Percentage change -------------------
-# 
-# # Price variation
-# clean6 <- clean6 %>%
-#   mutate(price_variation = max_price - min_price)
-# 
-# # Price percentage variation based on min_price
-# clean6 <- clean6 %>%
-#   mutate(price_percentage_variation_min = (max_price - min_price)/min_price)
-# 
-# # Price percentage variation based on max_price
-# clean6 <- clean6 %>%
-#   mutate(price_percentage_variation_max = (max_price - min_price)/max_price)
-# 
-# # Average price
-# clean6 <- clean6 %>%
-#   mutate(ave_price = (max_price + min_price)/2)
-# 
-# hist(clean6$price_variation)
-# table(clean6$price_variation)
-# 
-# hist(clean6$price_percentage_variation_min)
-# table(clean6$price_percentage_variation_min)
-# 
-# clean6[clean6$id == 8789 |clean6$id == 20741,]
-# 
-# #-------Split Train Data to train/test subsets (80/20 percent) --------- // Currently not use because K-Folds creates a validation set
-# #require(caTools)
-# #set.seed(741)
-# #sample = sample.split(clean3_knn$id,SplitRatio = 0.8)
-# #training_subset =subset(clean3_knn,sample ==TRUE)
-# #test_subset = subset(clean3_knn,sample ==FALSE)
-# 
-# 
-#-------Prepare Test Data-----------------------------------
+
+# Price variation
+clean6 <- clean6 %>%
+  mutate(price_variation = max_price - min_price)
+
+# Price percentage variation based on min_price
+clean6 <- clean6 %>%
+  mutate(price_percentage_variation_min = (max_price - min_price)/min_price)
+
+# Price percentage variation based on max_price
+clean6 <- clean6 %>%
+  mutate(price_percentage_variation_max = (max_price - min_price)/max_price)
+
+# Average price
+clean6 <- clean6 %>%
+  mutate(ave_price = (max_price + min_price)/2)
+
+hist(clean6$price_variation)
+table(clean6$price_variation)
+
+hist(clean6$price_percentage_variation_min)
+table(clean6$price_percentage_variation_min)
+
+clean6[clean6$id == 8789 |clean6$id == 20741,]
+
+#-------Split Train Data to train/test subsets (80/20 percent) --------- // Currently not use because K-Folds creates a validation set
+#require(caTools)
+#set.seed(741)
+#sample = sample.split(clean3_knn$id,SplitRatio = 0.8)
+#training_subset =subset(clean3_knn,sample ==TRUE)
+#test_subset = subset(clean3_knn,sample ==FALSE)
+
+
+###################################Prepare Test Data###########################################################
 colnames(test_df)[12] <- "dkeyboard"
 colnames(test_df)[1] <- "id"
 glimpse(test_df)
@@ -282,6 +288,21 @@ clean_test_knn %>%
 clean_test1 <- clean_test_knn %>%
   mutate(resolution = pixels_x * pixels_y)
 
+##------------------Screen Size for TEST DATA---------------------------------------------------
+clean_test1 <- clean_test1 %>%
+  mutate(screen_size= ifelse(screen_size>=10 & screen_size<=10.7,10,screen_size)) %>%
+  mutate(screen_size= ifelse(screen_size>=10.8 & screen_size<=11.7,11,screen_size)) %>%
+  mutate(screen_size= ifelse(screen_size>=11.8 & screen_size<=12.6,12,screen_size)) %>%
+  mutate(screen_size= ifelse(screen_size>=12.7 & screen_size<=13.6,13,screen_size)) %>%
+  mutate(screen_size= ifelse(screen_size>=13.7 & screen_size<=14.6,14,screen_size)) %>%
+  mutate(screen_size= ifelse(screen_size>=13.7 & screen_size<=14.6,14,screen_size)) %>%
+  mutate(screen_size= ifelse(screen_size>=14.7 & screen_size<=15.6,15,screen_size)) %>%
+  mutate(screen_size= ifelse(screen_size>=15.7 & screen_size<=16.6,16,screen_size)) %>%
+  mutate(screen_size= ifelse(screen_size>=16.7 & screen_size<=17.6,17,screen_size)) %>%
+  mutate(screen_size= ifelse(screen_size>=17.7 & screen_size<=18.6,18,screen_size))
+
+clean_test1$screen_size <- as.factor(clean_test1$screen_size)
+
 #--------------CPU Scores for test data -----------------------------------------
 clean_test1 <-clean_test1 %>%
   mutate(cpu_details,cpu_clean= gsub("\\s*(\\d[.]\\d*)\\s*(GHz|ghz|Ghz|Ghz|gHz).*","",clean_test1$cpu_details))
@@ -295,8 +316,6 @@ clean_test2 <- clean_test1 %>%
 clean_test2$cpu_model <- as.character(clean_test2$cpu_model)
 clean_test2$cpu_benchmark_score[is.na(clean_test2$cpu_benchmark_score)] <- 500
 clean_test2$cpu_model[is.na(clean_test2$cpu_model)] <- "other"
-
-
 
 #--------------GPU Scores for test data -----------------------------------------------
 clean_test3 <- mutate(clean_test2, gpu = ifelse(discrete_gpu == 0, 0,as.character(gpu)))
@@ -363,8 +382,6 @@ base_nam_test <- clean_test3 %>%
   mutate(base_name_clean= ifelse(grepl("acer r11",base_name_clean),"acer chromebook r11",base_name_clean)) %>%
   mutate(base_name_clean= ifelse(grepl("asus c300sa",base_name_clean),"asus chromebook c300sa",base_name_clean)) %>%
   mutate(base_name_clean= ifelse(grepl("samsung notebook flash",base_name_clean),"samsung notebook",base_name_clean))
-  
-  
 
 base_nam_test <- base_nam_test %>%
   mutate(base_name_clean= gsub("\\s*([(]).*|\\s*([-]).*","",base_nam_test$base_name_clean)) 
@@ -1013,106 +1030,105 @@ library(PerformanceAnalytics)
 library(dplyr)
 library(caret)
 
-training_subset.n=training_subset%>%select_if(is.numeric) #Creating subset of numeric variables to check all the correlations 
-chart.Correlation(training_subset.n)                      #Showing all the correlations, scatterplots and distributions in one pic very useful to get the  insight on how to change features 
+training.n=clean6%>%select_if(is.numeric) #Creating subset of numeric variables to check all the correlations 
 
 #-------------Tranaforming categorical variables ----------
-lookup = training_subset %>%                     #creating lookup table for mean of max_price of brands
+lookup = clean6 %>%                     #creating lookup table for mean of max_price of brands
   group_by(brand) %>%
   summarise(mean_brand = mean(max_price))
-training_subset = left_join(training_subset, lookup)   #Joining tables 
-training_subset=training_subset[,-3]                   #removing "brand" column 
-training_subset=training_subset[,c(-2,-3)]             #removing name and base_name
-training_subset=training_subset[,-3]                   #removing pixel_x
+clean6 = left_join(clean6, lookup)   #Joining tables 
+clean6=clean6[,-3]                   #removing "brand" column 
+clean6=clean6[,c(-2,-3)]             #removing name and base_name
+clean6=clean6[,-3]                   #removing pixel_x
 
 library(forcats)
-training_subset$screen_size=fct_collapse(as.factor(training_subset$screen_size), '11.6' = c("10.1","10.8","12","12.2","12.3"))  
-training_subset$screen_size=fct_collapse(as.factor(training_subset$screen_size), '13.3' = c("12.5","13.5"))
-training_subset$screen_size=fct_collapse(as.factor(training_subset$screen_size), '14' = c("13.9"))
-training_subset$screen_size=fct_collapse(as.factor(training_subset$screen_size), '15.6' = c("15","15.4","16"))
-training_subset$screen_size=fct_collapse(as.factor(training_subset$screen_size), '17.3' = c("17"))
+clean6$screen_size=fct_collapse(as.factor(clean6$screen_size), '11.6' = c("10.1","10.8","12","12.2","12.3"))  
+clean6$screen_size=fct_collapse(as.factor(clean6$screen_size), '13.3' = c("12.5","13.5"))
+clean6$screen_size=fct_collapse(as.factor(clean6$screen_size), '14' = c("13.9"))
+clean6$screen_size=fct_collapse(as.factor(clean6$screen_size), '15.6' = c("15","15.4","16"))
+clean6$screen_size=fct_collapse(as.factor(clean6$screen_size), '17.3' = c("17"))
 
-lookup = training_subset %>%                     #creating lookup table for mean of screen_size
+lookup = clean6 %>%                     #creating lookup table for mean of screen_size
   group_by(screen_size) %>%
   summarise(mean_screensize = mean(max_price))
-training_subset = left_join(training_subset, lookup)
+clean6 = left_join(clean6, lookup)
  
-training_subset=training_subset[,-2]              #removing "screen_size" column 
+clean6=clean6[,-2]              #removing "screen_size" column 
 
-training_subset$pixels_y=fct_collapse(as.factor(training_subset$pixels_y), '768' = c("800","900"))  
-training_subset$pixels_y=fct_collapse(as.factor(training_subset$pixels_y), '1080' = c("1200","1280","1440","1504","1600","1800","1824","1920","2000","2160"))
+clean6$pixels_y=fct_collapse(as.factor(clean6$pixels_y), '768' = c("800","900"))  
+clean6$pixels_y=fct_collapse(as.factor(clean6$pixels_y), '1080' = c("1200","1280","1440","1504","1600","1800","1824","1920","2000","2160"))
 
-lookup = training_subset %>%                      #creating lookup table for mean of max_price
+lookup = clean6 %>%                      #creating lookup table for mean of max_price
   group_by(pixels_y) %>%
   summarise(mean_pixely = mean(max_price))
-training_subset = left_join(training_subset, lookup)
+clean6 = left_join(clean6, lookup)
 
-training_subset=training_subset[,-2]            #Removing "pixel_y" column
+clean6=clean6[,-2]            #Removing "pixel_y" column
 
-lookup = training_subset %>%                     #creating lookup table for mean of screen_surface
+lookup = clean6 %>%                     #creating lookup table for mean of screen_surface
   group_by(screen_surface) %>%
   summarise(mean_screensurface = mean(max_price))
-training_subset = left_join(training_subset, lookup)
-training_subset=training_subset[,-2]             #Removing screen_surface
+clean6 = left_join(clean6, lookup)
+clean6=clean6[,-2]             #Removing screen_surface
 
-lookup = training_subset %>%                     #creating lookup table for mean of screen_size
+lookup = clean6 %>%                     #creating lookup table for mean of screen_size
   group_by(touchscreen) %>%
   summarise(mean_touchscreen = mean(max_price))
-training_subset = left_join(training_subset, lookup)
-training_subset=training_subset[,-2]             #Removing touchscreen column
+clean6 = left_join(clean6, lookup)
+clean6=clean6[,-2]             #Removing touchscreen column
 
-training_subset$cpu=fct_collapse(as.factor(training_subset$cpu), 'AMD' = c("AMD A10","AMD A12","AMD A6","AMD A8","AMD A9","AMD FX","AMD Ryzen 3","AMD Ryzen 5","AMD Ryzen 7")) 
-training_subset$cpu=fct_collapse(as.factor(training_subset$cpu), 'OTHER' = c("MediaTek","Rockchip","Samsung Exynos")) 
+clean6$cpu=fct_collapse(as.factor(clean6$cpu), 'AMD' = c("AMD A10","AMD A12","AMD A6","AMD A8","AMD A9","AMD FX","AMD Ryzen 3","AMD Ryzen 5","AMD Ryzen 7")) 
+clean6$cpu=fct_collapse(as.factor(clean6$cpu), 'OTHER' = c("MediaTek","Rockchip","Samsung Exynos")) 
 
-lookup = training_subset %>%                     #creating lookup table for mean of "cpu" prices
+lookup = clean6 %>%                     #creating lookup table for mean of "cpu" prices
   group_by(cpu) %>%
   summarise(mean_cpu= mean(max_price))
-training_subset = left_join(training_subset, lookup)
-training_subset=training_subset[,-2]             #Removing cpu
-training_subset=training_subset[,-2]             #Removing cpu_detail
+clean6 = left_join(clean6, lookup)
+clean6=clean6[,-2]             #Removing cpu
+clean6=clean6[,-2]             #Removing cpu_detail
 
-lookup = training_subset %>%                     #creating lookup table for mean of dkeyboard
+lookup = clean6 %>%                     #creating lookup table for mean of dkeyboard
   group_by(dkeyboard) %>%
   summarise(mean_dkeyboard= mean(max_price))
-training_subset = left_join(training_subset, lookup)
-training_subset=training_subset[,-2]  #Removing dkeyboard
+clean6 = left_join(clean6, lookup)
+clean6=clean6[,-2]  #Removing dkeyboard
 
-lookup = training_subset %>%                     #creating lookup table for mean of discrete_gpu
+lookup = clean6 %>%                     #creating lookup table for mean of discrete_gpu
   group_by(discrete_gpu) %>%
   summarise(mean_discretegpu= mean(max_price))
-training_subset = left_join(training_subset, lookup)
-training_subset=training_subset[,-2]             #Removing discrete_gpu
+clean6 = left_join(clean6, lookup)
+clean6=clean6[,-2]             #Removing discrete_gpu
 
-training_subset$gpu=fct_collapse(as.factor(training_subset$gpu), 'AMD Radeon R' = c("AMD Radeon R2","AMD Radeon R4","AMD Radeon R5","AMD Radeon R6","AMD Radeon R7")) 
+clean6$gpu=fct_collapse(as.factor(clean6$gpu), 'AMD Radeon R' = c("AMD Radeon R2","AMD Radeon R4","AMD Radeon R5","AMD Radeon R6","AMD Radeon R7")) 
 
-lookup = training_subset %>%                     #creating lookup table for mean of gpu
+lookup = clean6 %>%                     #creating lookup table for mean of gpu
   group_by(gpu) %>%
   summarise(mean_gpu= mean(max_price))
-training_subset = left_join(training_subset, lookup)
-training_subset=training_subset[,-2]             #Removing gpu
+clean6 = left_join(clean6, lookup)
+clean6=clean6[,-2]             #Removing gpu
 
-lookup = training_subset %>%                     #creating lookup table for mean of gpu
+lookup = clean6 %>%                     #creating lookup table for mean of gpu
   group_by(os) %>%
   summarise(mean_os= mean(max_price))
-training_subset = left_join(training_subset, lookup)
-training_subset=training_subset[,-2]             #Removing os
+clean6 = left_join(clean6, lookup)
+clean6=clean6[,-2]             #Removing os
 
-training_subset=training_subset[,-2]             #Removing os_details
-training_subset$ram=as.numeric(training_subset$ram)
-training_subset$ssd=as.numeric(training_subset$ssd)
-training_subset$storage=as.numeric(training_subset$storage)
+clean6=clean6[,-2]             #Removing os_details
+clean6$ram=as.numeric(clean6$ram)
+clean6$ssd=as.numeric(clean6$ssd)
+clean6$storage=as.numeric(clean6$storage)
 
 #---------------Scaling the data to (0,1) range---------
-x = training_subset[, -c(6,7)]   #Removing response variables (Min and Max price) from the training subset 
-y = training_subset$max_price    #Having max_price as response
+x = clean6[, -c(6,7)]   #Removing response variables (Min and Max price) from the training subset 
+y = clean6$max_price    #Having max_price as response
 
 
-training_without=subset(training_subset,select=-c(6,7))      #Ranging all the variables between 0 and 1
+training_without=subset(clean6,select=-c(6,7))      #Ranging all the variables between 0 and 1
 preProcess_range_model <- preProcess(training_without, method='range')
 trainData <- predict(preProcess_range_model, newdata = training_without)
 
 featurePlot(x = trainData,                                   #creating scaterplot to look at relations
-            y = training_subset$max_price, 
+            y = clean6$max_price, 
             plot = "scatter",
             type = c("p", "smooth"),
             span = .5,
@@ -1126,7 +1142,7 @@ ctrl <- rfeControl(functions = rfFuncs,
                                        repeats = 5,
                                       verbose = FALSE)
 
-   lmProfile <- rfe(x=trainData[, 2:15], y=training_subset$max_price,
+   lmProfile <- rfe(x=trainData[, 2:15], y=clean6$max_price,
                                  rfeControl = ctrl)
 
    lmProfile
