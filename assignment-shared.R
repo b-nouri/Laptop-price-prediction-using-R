@@ -355,7 +355,7 @@ base_nam_test <- clean_test3 %>%
   mutate(base_name_clean= ifelse(grepl("dell inspiron chromebook",base_name_clean),"dell chromebook",base_name_clean)) %>%
   mutate(base_name_clean= ifelse(grepl("asus transformer mini",base_name_clean),"asus transformer book mini",base_name_clean)) %>%
   mutate(base_name_clean= ifelse(grepl("asus l402sa",base_name_clean),"  ASUS Vivobook L402SA",base_name_clean)) %>%
-  mutate(base_name_clean= ifelse(grepl("alienware area",base_name_clean),"alienware 17",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("alienware area-51m",base_name_clean),"alienware 17 r5",base_name_clean)) %>%
   mutate(base_name_clean= ifelse(grepl("samsung chromebook xe303c12",base_name_clean),"samsung chromebook",base_name_clean)) %>%
   mutate(base_name_clean= ifelse(grepl("acer cb3-532",base_name_clean),"acer chromebook cb3-532",base_name_clean)) %>%
   mutate(base_name_clean= ifelse(grepl("asus c302ca-dhm4",base_name_clean),"asus chromebook c302ca-dhm4",base_name_clean)) %>%
@@ -378,7 +378,7 @@ base_nam_test$base_name_clean <- tolower(base_nam_test$base_name_clean)
 base_nam_test <- base_nam_test %>%
   mutate(base_name_clean=ifelse(grepl("acer",base_name),str_extract(base_nam_test$base_name_clean,"^(?=.*\\bacer\\b)(?:\\S+\\s){2}|^(?=.*\\bacer\\b)(?:\\S+){1}"),base_name_clean)) %>%
   mutate(base_name_clean=ifelse(grepl("alienware",base_name),str_extract(base_nam_test$base_name_clean,"(\\S+\\s){2}|^(\\S+\\s\\S+)"),base_name_clean)) %>%
-  mutate(base_name_clean=ifelse(grepl("alienware\\s\\D+\\d+",base_name),str_extract(base_nam_test$base_name_clean,"\\S+\\s\\D+"),base_name_clean)) %>%
+  mutate(base_name_clean=ifelse(grepl("alienware\\s\\D+\\d+",base_name_clean),str_extract(base_nam_test$base_name_clean,"\\S+\\s\\D+"),base_name_clean)) %>%
   mutate(base_name_clean=ifelse(grepl("asus",base_name),str_extract(base_nam_test$base_name_clean,"(\\S+\\s){2,3}|(\\S+\\s\\S+){1,2}"),base_name_clean)) %>%
   mutate(base_name_clean=ifelse(grepl("asus x5.*",base_name),"asus x5",base_name_clean)) %>%
   mutate(base_name_clean=ifelse(grepl("asus fx.*",base_name),"asus fx",base_name_clean)) %>%
@@ -410,7 +410,7 @@ base_nam_test$base_name_clean <- str_squish(base_nam_test$base_name_clean)
 unique(base_nam_test$base_name_clean)
 clean_test3$base_name_clean <- base_nam_test$base_name_clean
 
-#clean_test3$base_name_clean[!(clean_test3$base_name_clean %in% clean6$base_name_clean)]
+clean_test3$base_name_clean[!(clean_test3$base_name_clean %in% clean6$base_name_clean)]
 #--------- 2-in-1 laptops - test data --------------------------------------------
 clean_test3 <- clean_test3 %>%
   mutate(x360 = ifelse(grepl("2-in-1",name)|grepl("x360",name)|grepl("transformer",name)|grepl("convertible",name)|grepl("flip",name)|
