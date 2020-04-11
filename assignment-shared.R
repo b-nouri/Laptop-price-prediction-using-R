@@ -140,6 +140,11 @@ base_nam <- clean6 %>%
   mutate(base_name_clean= ifelse(grepl("dell i3558-9136blk",base_name_clean),"Dell Inspiron 15.6 Touch-Screen Laptop Intel Core",base_name_clean)) %>%
   mutate(base_name_clean= ifelse(grepl("dell g3",base_name_clean),"Dell g",base_name_clean)) %>%
   mutate(base_name_clean= ifelse(grepl("dell g5",base_name_clean),"Dell g",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("dell g5",base_name_clean),"Dell g",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("acer cb3-532",base_name_clean),"acer chromebook cb3-532",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("asus c302ca-dhm4",base_name_clean),"asus chromebook c302ca-dhm4",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("acer cb3-531-c4a5",base_name_clean),"acer chromebook cb3-531-c4a5",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("asus c300sa",base_name_clean),"asus chromebook c300sa",base_name_clean)) %>%
   mutate(base_name_clean= gsub("^.*dell xps\\S+.*","Dell xps",base_name_clean)) %>%
   mutate(base_name_clean= gsub("lenovo 100e","lenovo",base_name_clean)) %>%
   mutate(base_name_clean= ifelse(grepl("dell inspiron chromebook",base_name_clean),"dell chromebook",base_name_clean))
@@ -195,6 +200,35 @@ clean6 <- clean6 %>%
   mutate(x360 = ifelse(grepl("2-in-1",name)|grepl("x360",name)|grepl("transformer",name)|grepl("convertible",name)|grepl("flip",name)|
                        grepl("2-in-1",base_name)|grepl("x360",base_name)|grepl("transformer",base_name)|grepl("convertible",base_name)|grepl("flip",base_name)
                          ,1,0))
+#--------- os details ---------------------------------------------
+
+os_details1<- clean6 %>%
+  select(os,os_details,max_price) %>%
+  filter(os_details=="Windows 10 Pro"|os_details=="Windows 10 Home"|
+         os_details=="Windows 8.1"|os_details=="Windows 7"|
+           os_details=="Windows 10 S"|os_details=="Windows 10")
+  ggplot(os_details1, aes(x=os_details,y=max_price)) +
+  geom_boxplot()
+
+cor(clean4$resolution,clean4$max_price,method = "spearman")
+cor(clean4$screen_size,clean4$max_price)
+
+sort(unique(clean4$screen_size))
+
+
+library(dplyr)
+library(tidyr)
+clean4 <- as_tibble(clean4)
+clean4 %>%
+  filter(!is.na(os_details)) %>%    # Using "data", filter out all rows with NAs in aa 
+  group_by(os_details) %>%          # Then, with the filtered data, group it by "bb"
+  summarise(count_o = n()) %>%
+  arrange(count_o)
+  
+  
+  select(os,os_details) %>% 
+  group_by(os_details) %>% 
+  summarise(n= n())
 
 #--------- Price variation and Percentage change -------------------
 # 
@@ -323,6 +357,11 @@ base_nam_test <- clean_test3 %>%
   mutate(base_name_clean= ifelse(grepl("asus l402sa",base_name_clean),"  ASUS Vivobook L402SA",base_name_clean)) %>%
   mutate(base_name_clean= ifelse(grepl("alienware area",base_name_clean),"alienware 17",base_name_clean)) %>%
   mutate(base_name_clean= ifelse(grepl("samsung chromebook xe303c12",base_name_clean),"samsung chromebook",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("acer cb3-532",base_name_clean),"acer chromebook cb3-532",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("asus c302ca-dhm4",base_name_clean),"asus chromebook c302ca-dhm4",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("acer cb3-531-c4a5",base_name_clean),"acer chromebook cb3-531-c4a5",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("acer r11",base_name_clean),"acer chromebook r11",base_name_clean)) %>%
+  mutate(base_name_clean= ifelse(grepl("asus c300sa",base_name_clean),"asus chromebook c300sa",base_name_clean)) %>%
   mutate(base_name_clean= ifelse(grepl("samsung notebook flash",base_name_clean),"samsung notebook",base_name_clean))
   
   
@@ -371,11 +410,15 @@ base_nam_test$base_name_clean <- str_squish(base_nam_test$base_name_clean)
 unique(base_nam_test$base_name_clean)
 clean_test3$base_name_clean <- base_nam_test$base_name_clean
 
+#clean_test3$base_name_clean[!(clean_test3$base_name_clean %in% clean6$base_name_clean)]
 #--------- 2-in-1 laptops - test data --------------------------------------------
 clean_test3 <- clean_test3 %>%
   mutate(x360 = ifelse(grepl("2-in-1",name)|grepl("x360",name)|grepl("transformer",name)|grepl("convertible",name)|grepl("flip",name)|
                          grepl("2-in-1",base_name)|grepl("x360",base_name)|grepl("transformer",base_name)|grepl("convertible",base_name)|grepl("flip",base_name)
                        ,1,0))
+
+#--------- os_details -----------------------------------------------------------
+
 
 #--------- Data not normalized ------------------
 
