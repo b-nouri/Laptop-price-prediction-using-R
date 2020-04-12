@@ -274,11 +274,11 @@ clean_test_knn <- knnImputation(clean_test)
 aggr(x=clean_test_knn)
 
 ##----------------Screen Surface for Test Data------------------------
-clean_test$screen_surface <- tolower(clean_test$screen_surface)
+clean_test_knn$screen_surface <- tolower(clean_test_knn$screen_surface)
 
 ##----------------Screen Resolution for TEST DATA--------------------------------------------
 #---outlier width and lenght----------------------
-clean_test1<-clean_test
+clean_test1<-clean_test_knn
 clean_test1[133,"pixels_x"] <- 1366
 clean_test1[133,"pixels_y"] <- 768
 clean_test1[203,"pixels_x"] <- 1366
