@@ -22,6 +22,13 @@ colnames(gpu_df)[2] <- "gpu_benchmark_score"
 new.cpu <- data.frame(cpu_model = c("Intel Pentium Gold 4415Y", "Intel Pentium Gold 4417U"),
                       cpu_benchmark_score = c(3800, 3900))
 cpu_df <- rbind(cpu_df, new.cpu)
+cpu_df <- cpu_df[!is.na(cpu_df$cpu_benchmark_score),]
+gpu_df <- gpu_df[!is.na(gpu_df$gpu_benchmark_score),]
+# cpu_df$cpu_benchmark_score <- scale(cpu_df$cpu_benchmark_score,center = TRUE)
+# gpu_df$gpu_benchmark_score <- scale(gpu_df$gpu_benchmark_score,center = TRUE)
+# 
+# boxplot(cpu_df$cpu_benchmark_score)
+# boxplot(gpu_df$gpu_benchmark_score)
 
 ###############################Prepare Train Data#############################################
 colnames(train_df)[12] <- "dkeyboard"
@@ -69,7 +76,7 @@ clean4 <- clean4 %>%
   mutate(resolution= ifelse(pixels_x==2736 & pixels_y==1824,"PixelSense",resolution)) %>%
   mutate(resolution= ifelse(pixels_x==1440 & pixels_y==900,"airhd",resolution)) %>%
   mutate(resolution= ifelse(pixels_x==3240 & pixels_y==2160,"PixelSense",resolution))
-  
+
 ##------------------Screen Size for TRAIN DATA---------------------------------------------------
 clean4 <- clean4 %>%
   mutate(screen_size= ifelse(screen_size>=10 & screen_size<=10.7,10,screen_size)) %>%
@@ -95,6 +102,33 @@ clean4 <- clean4 %>%
   mutate(display_type= ifelse(brand=="Apple" & (resolution=="HD"|resolution=="airhd"),"led",display_type)) %>%
   mutate(display_type= ifelse(grepl("Microsoft Surface",base_name),"ips",display_type))
 
+##---------------------Brand Train Data-----------------------------------------
+clean4$brand <- as.character(clean4$brand)
+clean4 <- clean4 %>%
+  mutate(brand_clean= brand) %>%
+  mutate(brand_clean= ifelse(grepl("Eluktronics",base_name),"eluktronics",brand_clean)) %>%
+  mutate(brand_clean= ifelse(grepl("Sager",base_name),"sager",brand_clean)) %>%
+  mutate(brand_clean= ifelse(grepl("Prostar",base_name),"prostar",brand_clean)) %>%
+  mutate(brand_clean= ifelse(grepl("Jumper",brand),"Other",brand_clean)) %>%
+  mutate(brand_clean= ifelse(grepl("RCA",brand),"Other",brand_clean)) %>%
+  mutate(brand_clean= ifelse(grepl("Toshiba",brand),"Other",brand_clean))
+
+brand_t <- clean4 %>%
+  mutate(price=(max_price+min_price)/2) %>%
+  group_by(brand_clean) %>%
+  summarise(brand_mean = mean(price))
+clean4 <- left_join(clean4,brand_t)
+clean4 <- clean4 %>%
+  mutate(brand_mean= ifelse(brand_mean <=300,300,brand_mean)) %>%
+  mutate(brand_mean= ifelse(brand_mean <=450 & brand_mean >300,400,brand_mean)) %>%
+  mutate(brand_mean= ifelse(brand_mean <=650 & brand_mean >450,600,brand_mean)) %>%
+  mutate(brand_mean= ifelse(brand_mean <=900 & brand_mean >650,750,brand_mean)) %>%
+  mutate(brand_mean= ifelse(brand_mean <=1200 & brand_mean >900,950,brand_mean)) %>%
+  mutate(brand_mean= ifelse(brand_mean <=1400 & brand_mean >1200,1300,brand_mean)) %>%
+  mutate(brand_mean= ifelse(brand_mean <=1600 & brand_mean >1400,1500,brand_mean)) %>%
+  mutate(brand_mean= ifelse(brand_mean >2000,2000,brand_mean))
+
+
 ##---------------------CPU Scores-----------------------------------------------
 clean4<-clean4 %>%
   mutate(cpu_details,cpu_clean= gsub("\\s*(\\d[.]\\d*)\\s*(GHz|ghz|Ghz|Ghz|gHz).*","",clean4$cpu_details))
@@ -110,33 +144,39 @@ clean5$cpu_benchmark_score[is.na(clean5$cpu_benchmark_score)] <- 500
 clean5$cpu_benchmark_score[clean5$cpu_details=="Intel Pentium Gold 4415Y"] <- 3800
 clean5$cpu_model[is.na(clean5$cpu_model)] <- "other"
 
+b <- c(-Inf, 1750, 2900,6600,7400,9100, Inf)
+names <- c("1", "2", "3","4","5","6")
+clean5$cpu_benchmark <- cut(clean5$cpu_benchmark_score, breaks = b, labels = names)
+
 ###--------------GPU Scores for TRAIN DATA-----------------------------------------------
-clean6 <- mutate(clean5, gpu = ifelse(discrete_gpu == 0, 0,as.character(gpu)))
-
-clean6<-clean6 %>%
-  mutate(gpu,gpu_model= gsub("^(\\S+\\s+\\n?){1}","",clean6$gpu))
-
 gpu_df[,1] <- gsub(" with", "", gpu_df$gpu_model)
 gpu_df[,1] <- gsub(" Design", "", gpu_df$gpu_model)
 
+clean6 <- clean5
+clean6<-clean6 %>%
+  mutate(gpu_model= gsub("NVIDIA ","",clean6$gpu)) %>%
+  mutate(gpu_model= ifelse(grepl("AMD",clean6$gpu),gsub("AMD ","",clean6$gpu),gpu_model))
+
 clean6$gpu_model <- gsub("GeFoce", "GeForce", clean6$gpu_model)
 clean6$gpu_model <- gsub("GTX1070", "GTX 1070", clean6$gpu_model)
+clean6$gpu_model <- gsub("Radeon Pro 555X", "Radeon Pro 555", clean6$gpu_model)
 
 clean6 <- clean6 %>%
   left_join(gpu_df,by="gpu_model")
-
-clean6$gpu_benchmark_score[clean6$gpu_model == 0] <- 0
 
 geforce_df <- filter(clean6, grepl('GeForce',clean6$gpu))
 geforce_mean_score <- mean(geforce_df$gpu_benchmark_score, na.rm =TRUE)
 
 clean6[is.na(clean6$gpu_benchmark_score) & grepl("GeForce",clean6$gpu_model),"gpu_benchmark_score"] <- geforce_mean_score
+clean6[is.na(clean6$gpu_benchmark_score) & grepl("Intel HD",clean6$gpu_model),"gpu_benchmark_score"] <- 800
+clean6[is.na(clean6$gpu_benchmark_score) & grepl("Radeon R",clean6$gpu_model),"gpu_benchmark_score"] <- 1200
+clean6[is.na(clean6$gpu_benchmark_score) & clean6$discrete_gpu == 0 ,"gpu_benchmark_score"] <- 500
+gpu <- clean6 %>%
+  select(gpu,gpu_model,max_price,discrete_gpu,gpu_benchmark_score)
 
-gpu_null <- clean6 %>%
-  select(gpu_model,gpu_benchmark_score) %>%
-  filter(is.na(clean6$gpu_benchmark_score))
-
-clean6[is.na(clean6$gpu_benchmark_score),"gpu_benchmark_score"] <- mean(clean6$gpu_benchmark_score,na.rm=TRUE)
+b <- c(-Inf, 800, 1600,9900, Inf)
+names <- c("1", "2", "3","4")
+clean6$gpu_benchmark <- cut(clean6$gpu_benchmark_score, breaks = b, labels = names)
 
 ##-------------------Base Name for TRAIN DATA--------------------------------------------------------
 library(stringr)
@@ -208,8 +248,8 @@ clean6$base_name_clean <- base_nam$base_name_clean
 #--------- 2-in-1 laptops --------------------------------------------
 clean6 <- clean6 %>%
   mutate(x360 = ifelse(grepl("2-in-1",name)|grepl("x360",name)|grepl("transformer",name)|grepl("convertible",name)|grepl("flip",name)|
-                       grepl("2-in-1",base_name)|grepl("x360",base_name)|grepl("transformer",base_name)|grepl("convertible",base_name)|grepl("flip",base_name)
-                         ,1,0))
+                         grepl("2-in-1",base_name)|grepl("x360",base_name)|grepl("transformer",base_name)|grepl("convertible",base_name)|grepl("flip",base_name)
+                       ,1,0))
 
 ##------------------weight for Train Data---------------------------------------------------
 clean6 <- clean6 %>%
@@ -324,6 +364,43 @@ clean_test1 <- clean_test1 %>%
   mutate(screen_size= ifelse(screen_size>=15.7 & screen_size<=16.6,16,screen_size)) %>%
   mutate(screen_size= ifelse(screen_size>=16.7 & screen_size<=17.6,17,screen_size)) %>%
   mutate(screen_size= ifelse(screen_size>=17.7 & screen_size<=18.6,18,screen_size))
+##---------------------Brand Train Data-----------------------------------------
+clean4$brand <- as.character(clean4$brand)
+clean4 <- clean4 %>%
+  mutate(brand_clean= brand) %>%
+  mutate(brand_clean= ifelse(grepl("Eluktronics",base_name),"eluktronics",brand_clean)) %>%
+  mutate(brand_clean= ifelse(grepl("Sager",base_name),"sager",brand_clean)) %>%
+  mutate(brand_clean= ifelse(grepl("Prostar",base_name),"prostar",brand_clean)) %>%
+  mutate(brand_clean= ifelse(grepl("Jumper",brand),"Other",brand_clean)) %>%
+  mutate(brand_clean= ifelse(grepl("RCA",brand),"Other",brand_clean)) %>%
+  mutate(brand_clean= ifelse(grepl("Toshiba",brand),"Other",brand_clean))
+
+
+##----------------------------brand Test Data---------------------------------------
+clean_test1$brand <- as.character(clean_test1$brand)
+clean_test1 <- clean_test1 %>%
+  mutate(brand_clean= brand) %>%
+  mutate(brand_clean= ifelse(grepl("Eluktronics",base_name),"eluktronics",brand_clean)) %>%
+  mutate(brand_clean= ifelse(grepl("Sager",base_name),"sager",brand_clean)) %>%
+  mutate(brand_clean= ifelse(grepl("Prostar",base_name),"prostar",brand_clean)) %>%
+  mutate(brand_clean= ifelse(grepl("Jumper",brand),"Other",brand_clean)) %>%
+  mutate(brand_clean= ifelse(grepl("RCA",brand),"Other",brand_clean)) %>%
+  mutate(brand_clean= ifelse(grepl("Toshiba",brand),"Other",brand_clean))
+
+brand_t <- clean4 %>%
+  mutate(price=(max_price+min_price)/2) %>%
+  group_by(brand_clean) %>%
+  summarise(brand_mean = mean(price))
+clean_test1 <- left_join(clean_test1,brand_t)
+clean_test1 <- clean_test1 %>%
+  mutate(brand_mean= ifelse(brand_mean <=300,300,brand_mean)) %>%
+  mutate(brand_mean= ifelse(brand_mean <=450 & brand_mean >300,400,brand_mean)) %>%
+  mutate(brand_mean= ifelse(brand_mean <=650 & brand_mean >450,600,brand_mean)) %>%
+  mutate(brand_mean= ifelse(brand_mean <=900 & brand_mean >650,750,brand_mean)) %>%
+  mutate(brand_mean= ifelse(brand_mean <=1200 & brand_mean >900,950,brand_mean)) %>%
+  mutate(brand_mean= ifelse(brand_mean <=1400 & brand_mean >1200,1300,brand_mean)) %>%
+  mutate(brand_mean= ifelse(brand_mean <=1600 & brand_mean >1400,1500,brand_mean)) %>%
+  mutate(brand_mean= ifelse(brand_mean >2000,2000,brand_mean))
 
 #--------------CPU Scores for test data -----------------------------------------
 clean_test1 <-clean_test1 %>%
@@ -339,33 +416,40 @@ clean_test2$cpu_model <- as.character(clean_test2$cpu_model)
 clean_test2$cpu_benchmark_score[is.na(clean_test2$cpu_benchmark_score)] <- 500
 clean_test2$cpu_model[is.na(clean_test2$cpu_model)] <- "other"
 
+b <- c(-Inf, 1750, 2900,6600,7400,9100, Inf)
+names <- c("1", "2", "3","4","5","6")
+clean_test3$cpu_benchmark <- cut(clean_test3$cpu_benchmark_score, breaks = b, labels = names)
+
 #--------------GPU Scores for test data -----------------------------------------------
-clean_test3 <- mutate(clean_test2, gpu = ifelse(discrete_gpu == 0, 0,as.character(gpu)))
-
-clean_test3<-clean_test3 %>%
-  mutate(gpu,gpu_model= gsub("^(\\S+\\s+\\n?){1}","",clean_test3$gpu))
-
 gpu_df[,1] <- gsub(" with", "", gpu_df$gpu_model)
 gpu_df[,1] <- gsub(" Design", "", gpu_df$gpu_model)
 
+clean_test3 <- clean_test2
+clean_test3<-clean_test3 %>%
+  mutate(gpu_model= gsub("NVIDIA ","",clean_test3$gpu)) %>%
+  mutate(gpu_model= ifelse(grepl("AMD",clean_test3$gpu),gsub("AMD ","",clean_test3$gpu),gpu_model))
+
 clean_test3$gpu_model <- gsub("GeFoce", "GeForce", clean_test3$gpu_model)
 clean_test3$gpu_model <- gsub("GTX1070", "GTX 1070", clean_test3$gpu_model)
+clean_test3$gpu_model <- gsub("Radeon Pro 555X", "Radeon Pro 555", clean_test3$gpu_model)
 
 clean_test3 <- clean_test3 %>%
   left_join(gpu_df,by="gpu_model")
-
-clean_test3$gpu_benchmark_score[clean_test3$gpu_model == 0] <- 0
 
 geforce_df <- filter(clean_test3, grepl('GeForce',clean_test3$gpu))
 geforce_mean_score <- mean(geforce_df$gpu_benchmark_score, na.rm =TRUE)
 
 clean_test3[is.na(clean_test3$gpu_benchmark_score) & grepl("GeForce",clean_test3$gpu_model),"gpu_benchmark_score"] <- geforce_mean_score
+clean_test3[is.na(clean_test3$gpu_benchmark_score) & grepl("Intel HD",clean_test3$gpu_model),"gpu_benchmark_score"] <- 800
+clean_test3[is.na(clean_test3$gpu_benchmark_score) & grepl("Radeon R",clean_test3$gpu_model),"gpu_benchmark_score"] <- 1200
+clean_test3[is.na(clean_test3$gpu_benchmark_score) & grepl("Radeon HD R7",clean_test3$gpu_model),"gpu_benchmark_score"] <- 1100
+clean_test3[is.na(clean_test3$gpu_benchmark_score) & clean_test3$discrete_gpu == 0 ,"gpu_benchmark_score"] <- 500
+gpu <- clean_test3 %>%
+  select(gpu,gpu_model,discrete_gpu,gpu_benchmark_score)
 
-gpu_null <- clean_test3 %>%
-  select(gpu_model,gpu_benchmark_score) %>%
-  filter(is.na(clean_test3$gpu_benchmark_score))
-
-clean_test3[is.na(clean_test3$gpu_benchmark_score),"gpu_benchmark_score"] <- mean(clean_test3$gpu_benchmark_score,na.rm=TRUE)
+b <- c(-Inf, 800, 1600,9900, Inf)
+names <- c("1", "2", "3","4")
+clean_test3$gpu_benchmark <- cut(clean_test3$gpu_benchmark_score, breaks = b, labels = names)
 
 #--------- Base_name_for_test_data-------------------------------------------------
 clean_test3$base_name <- tolower(clean_test3$base_name)
@@ -465,6 +549,18 @@ clean_test3 <- clean_test3 %>%
   mutate(weight_clean= ifelse(weight>=6 & weight<7,"6 to 6.9 Pounds",weight_clean)) %>%
   mutate(weight_clean= ifelse(weight>=7 & weight<8,"7 to 7.9 Pounds",weight_clean)) %>%
   mutate(weight_clean= ifelse(weight>=8 ,"8 Pounds & Above",weight_clean))
+
+##---------------------Display Type---------------------------------------------
+clean_test3$name <- tolower(clean_test3$name)
+clean_test3 <- clean_test3 %>%
+  mutate(display_type= "unkonwn") %>%
+  mutate(display_type= ifelse(grepl("lcd",name),"lcd",display_type)) %>%
+  mutate(display_type= ifelse(grepl("led",name),"led",display_type)) %>%
+  mutate(display_type= ifelse(grepl("oled",name),"oled",display_type)) %>%
+  mutate(display_type= ifelse(grepl("ips",name),"ips",display_type)) %>%
+  mutate(display_type= ifelse(brand=="Apple" & resolution=="Retina","ips",display_type)) %>%
+  mutate(display_type= ifelse(brand=="Apple" & (resolution=="HD"|resolution=="airhd"),"led",display_type)) %>%
+  mutate(display_type= ifelse(grepl("Microsoft Surface",base_name),"ips",display_type))
 
 #--------- Factorising Test Data-----------------------------------------------
 clean_test3$screen_size <- as.factor(clean_test3$screen_size)
