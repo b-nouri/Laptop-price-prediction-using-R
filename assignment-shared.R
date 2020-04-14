@@ -7,6 +7,7 @@ library(DMwR)
 library(caret)
 library(PerformanceAnalytics)
 
+
 #--------Load Data-------------------------------------------
 train_df <- read.csv("https://raw.githubusercontent.com/behnouri/lprice-prediction/master/train.csv", na.strings = c("", "NA"))
 test_df <- read.csv("https://raw.githubusercontent.com/behnouri/lprice-prediction/master/test.csv", na.strings=c("NA",""))
@@ -72,16 +73,16 @@ clean4 <- clean4 %>%
   
 ##------------------Screen Size for TRAIN DATA---------------------------------------------------
 clean4 <- clean4 %>%
-  mutate(screen_size= ifelse(screen_size>=10 & screen_size<=10.7,10,screen_size)) %>%
-  mutate(screen_size= ifelse(screen_size>=10.8 & screen_size<=11.7,11,screen_size)) %>%
-  mutate(screen_size= ifelse(screen_size>=11.8 & screen_size<=12.6,12,screen_size)) %>%
-  mutate(screen_size= ifelse(screen_size>=12.7 & screen_size<=13.6,13,screen_size)) %>%
-  mutate(screen_size= ifelse(screen_size>=13.7 & screen_size<=14.6,14,screen_size)) %>%
-  mutate(screen_size= ifelse(screen_size>=13.7 & screen_size<=14.6,14,screen_size)) %>%
-  mutate(screen_size= ifelse(screen_size>=14.7 & screen_size<=15.6,15,screen_size)) %>%
-  mutate(screen_size= ifelse(screen_size>=15.7 & screen_size<=16.6,16,screen_size)) %>%
-  mutate(screen_size= ifelse(screen_size>=16.7 & screen_size<=17.6,17,screen_size)) %>%
-  mutate(screen_size= ifelse(screen_size>=17.7 & screen_size<=18.6,18,screen_size))
+  mutate(screen_size_fact= ifelse(screen_size>=10 & screen_size<=10.7,10,screen_size)) %>%
+  mutate(screen_size_fact= ifelse(screen_size>=10.8 & screen_size<=11.7,11,screen_size)) %>%
+  mutate(screen_size_fact= ifelse(screen_size>=11.8 & screen_size<=12.6,12,screen_size)) %>%
+  mutate(screen_size_fact= ifelse(screen_size>=12.7 & screen_size<=13.6,13,screen_size)) %>%
+  mutate(screen_size_fact= ifelse(screen_size>=13.7 & screen_size<=14.6,14,screen_size)) %>%
+  mutate(screen_size_fact= ifelse(screen_size>=13.7 & screen_size<=14.6,14,screen_size)) %>%
+  mutate(screen_size_fact= ifelse(screen_size>=14.7 & screen_size<=15.6,15,screen_size)) %>%
+  mutate(screen_size_fact= ifelse(screen_size>=15.7 & screen_size<=16.6,16,screen_size)) %>%
+  mutate(screen_size_fact= ifelse(screen_size>=16.7 & screen_size<=17.6,17,screen_size)) %>%
+  mutate(screen_size_fact= ifelse(screen_size>=17.7 & screen_size<=18.6,18,screen_size))
 
 ##---------------------Display Type---------------------------------------------
 clean4$name <- tolower(clean4$name)
@@ -222,7 +223,7 @@ clean6 <- clean6 %>%
   mutate(weight_clean= ifelse(weight>=8 ,"8 Pounds & Above",weight_clean))
 
 #--------- Factorising Train Data-----------------------------------------------
-clean6$screen_size <- as.factor(clean6$screen_size)
+clean6$screen_size_fact <- as.factor(clean6$screen_size_fact)
 clean6$os <-as.factor(clean6$os)
 clean6$resolution <- as.factor(clean6$resolution)
 clean6$weight_clean <- as.factor(clean6$weight_clean)
@@ -314,16 +315,16 @@ clean_test1 <- clean_test1 %>%
 
 ##------------------Screen Size for TEST DATA---------------------------------------------------
 clean_test1 <- clean_test1 %>%
-  mutate(screen_size= ifelse(screen_size>=10 & screen_size<=10.7,10,screen_size)) %>%
-  mutate(screen_size= ifelse(screen_size>=10.8 & screen_size<=11.7,11,screen_size)) %>%
-  mutate(screen_size= ifelse(screen_size>=11.8 & screen_size<=12.6,12,screen_size)) %>%
-  mutate(screen_size= ifelse(screen_size>=12.7 & screen_size<=13.6,13,screen_size)) %>%
-  mutate(screen_size= ifelse(screen_size>=13.7 & screen_size<=14.6,14,screen_size)) %>%
-  mutate(screen_size= ifelse(screen_size>=13.7 & screen_size<=14.6,14,screen_size)) %>%
-  mutate(screen_size= ifelse(screen_size>=14.7 & screen_size<=15.6,15,screen_size)) %>%
-  mutate(screen_size= ifelse(screen_size>=15.7 & screen_size<=16.6,16,screen_size)) %>%
-  mutate(screen_size= ifelse(screen_size>=16.7 & screen_size<=17.6,17,screen_size)) %>%
-  mutate(screen_size= ifelse(screen_size>=17.7 & screen_size<=18.6,18,screen_size))
+  mutate(screen_size_fact= ifelse(screen_size>=10 & screen_size<=10.7,10,screen_size)) %>%
+  mutate(screen_size_fact= ifelse(screen_size>=10.8 & screen_size<=11.7,11,screen_size)) %>%
+  mutate(screen_size_fact= ifelse(screen_size>=11.8 & screen_size<=12.6,12,screen_size)) %>%
+  mutate(screen_size_fact= ifelse(screen_size>=12.7 & screen_size<=13.6,13,screen_size)) %>%
+  mutate(screen_size_fact= ifelse(screen_size>=13.7 & screen_size<=14.6,14,screen_size)) %>%
+  mutate(screen_size_fact= ifelse(screen_size>=13.7 & screen_size<=14.6,14,screen_size)) %>%
+  mutate(screen_size_fact= ifelse(screen_size>=14.7 & screen_size<=15.6,15,screen_size)) %>%
+  mutate(screen_size_fact= ifelse(screen_size>=15.7 & screen_size<=16.6,16,screen_size)) %>%
+  mutate(screen_size_fact= ifelse(screen_size>=16.7 & screen_size<=17.6,17,screen_size)) %>%
+  mutate(screen_size_fact= ifelse(screen_size>=17.7 & screen_size<=18.6,18,screen_size))
 
 #--------------CPU Scores for test data -----------------------------------------
 clean_test1 <-clean_test1 %>%
@@ -467,7 +468,7 @@ clean_test3 <- clean_test3 %>%
   mutate(weight_clean= ifelse(weight>=8 ,"8 Pounds & Above",weight_clean))
 
 #--------- Factorising Test Data-----------------------------------------------
-clean_test3$screen_size <- as.factor(clean_test3$screen_size)
+clean_test3$screen_size_fact <- as.factor(clean_test3$screen_size_fact)
 clean_test3$os <-as.factor(clean_test3$os)
 clean_test3$resolution <- as.factor(clean_test3$resolution)
 clean_test3$weight_clean <- as.factor(clean_test3$weight_clean)
@@ -475,13 +476,13 @@ clean_test3$weight_clean <- as.factor(clean_test3$weight_clean)
 #--------- Data not normalized ------------------
 
 # Selecting only the features to use
-#Features: brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution(pixels_x*pixels_y), discrete_gpu, 
+#Features: brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu, 
 #          cpu_benchmark_score, gpu_benchmark_score
 
-maxPrice_Clean_Training_prev <- clean6 %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score, max_price)
+maxPrice_Clean_Training_prev <- clean6 %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, pixels_x, pixels_y, x360, cpu_benchmark_score, gpu_benchmark_score, base_name_clean, max_price)
 maxPrice_Clean_Training <- data.frame(model.matrix(~., data=maxPrice_Clean_Training_prev))
 
-minPrice_Clean_Training_prev <- clean6 %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score, min_price)
+minPrice_Clean_Training_prev <- clean6 %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, pixels_x, pixels_y, x360, cpu_benchmark_score, gpu_benchmark_score, base_name_clean, min_price)
 minPrice_Clean_Training <- data.frame(model.matrix(~., data=minPrice_Clean_Training_prev))
 
 
@@ -498,11 +499,11 @@ testScaled <- predict(preProcValues, clean_test3)
 glimpse(testScaled)
 
 # Selecting only the features to use for Normalized data
-maxPrice_Norm_Training_prev <- trainScaled %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score, max_price)
+maxPrice_Norm_Training_prev <- trainScaled %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, pixels_x, pixels_y, x360, cpu_benchmark_score, gpu_benchmark_score, base_name_clean, max_price)
 maxPrice_Norm_Training <- data.frame(model.matrix(~., data=maxPrice_Norm_Training_prev))
 maxPrice_Norm_Training
 
-minPrice_Norm_Training_prev <- trainScaled %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score, min_price)
+minPrice_Norm_Training_prev <- trainScaled %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, pixels_x, pixels_y, x360, cpu_benchmark_score, gpu_benchmark_score, base_name_clean, min_price)
 minPrice_Norm_Training <- data.frame(model.matrix(~., data=minPrice_Norm_Training_prev))
 minPrice_Norm_Training
 
@@ -533,9 +534,9 @@ model1_max <- train(max_price ~ . , data = maxPrice_Norm_Training,
 model2_max <- train(max_price ~ . , data = maxPrice_Norm_Training,
                     method = "glm", trControl = train.control, metric = "MAE") #warning a lot of features
 
-##### Train the model 3 (GLM with Step AIC)
+##### Train the model 3 (GAM )
 model3_max <- train(max_price ~ . , data = maxPrice_Norm_Training,
-                    method = "glmStepAIC", trControl = train.control, metric = "MAE")
+                    method = "gam", trControl = train.control, metric = "MAE")
 
 ##### Train the model 4 (Elastic net (glm))
 model4_max <- train(max_price ~ . , data = maxPrice_Norm_Training,
@@ -557,6 +558,19 @@ model7_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
 model8_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
                     method = "gbm", trControl = train.control, metric = "MAE")
 
+##### Train the model 9
+model9_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
+                    method = "glmboost", trControl = train.control, metric = "MAE")
+
+##### Train the model 10
+model10_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
+                    method = "treebag", trControl = train.control, metric = "MAE")
+
+##### Train the model 11
+model11_max <- train(max_price ~ . , data = maxPrice_Clean_Training,
+                     method = "bayesglm", trControl = train.control, metric = "MAE")
+
+
 
 
 #--------Models for min_price with Normalized data (except decision tree models) -----------------
@@ -573,9 +587,7 @@ model1_min <- train(min_price ~ . , data = minPrice_Norm_Training,
 model2_min <- train(min_price ~ . , data = minPrice_Norm_Training,
                     method = "glm", trControl = train.control, metric = "MAE") #warning a lot of features
 
-##### Train the model 3 (GLM with Step AIC)
-model3_min <- train(min_price ~ . , data = minPrice_Norm_Training,
-                    method = "glmStepAIC", trControl = train.control, metric = "MAE")
+
 
 ##### Train the model 4 (Elastic net (glm))
 model4_min <- train(min_price ~ . , data = minPrice_Norm_Training,
@@ -597,6 +609,23 @@ model7_min <- train(min_price ~ . , data = minPrice_Clean_Training,
 model8_min <- train(min_price ~ . , data = minPrice_Clean_Training,
                     method = "gbm", trControl = train.control, metric = "MAE")
 
+##### Train the model 9
+model9_min <- train(min_price ~ . , data = minPrice_Clean_Training,
+                    method = "glmboost", trControl = train.control, metric = "MAE")
+
+##### Train the model 3 (GAM)
+model3_min <- train(min_price ~ . , data = minPrice_Norm_Training,
+                    method = "gam", trControl = train.control, metric = "MAE")
+
+##### Train the model 10
+model10_min <- train(min_price ~ . , data = minPrice_Clean_Training,
+                    method = "treebag", trControl = train.control, metric = "MAE")
+
+##### Train the model 11
+model11_min <- train(min_price ~ . , data = minPrice_Clean_Training,
+                     method = "bayesglm", trControl = train.control, metric = "MAE")
+
+
 
 
 #------- Summarize the results ----------------
@@ -607,12 +636,45 @@ model8_min <- train(min_price ~ . , data = minPrice_Clean_Training,
 
 print(model1_max$results$MAE+model1_min$results$MAE)
 print(model2_max$results$MAE+model2_min$results$MAE)
-print(model3_max$results$MAE+model3_min$results$MAE)
+print(min(model3_max$results$MAE+model3_min$results$MAE))
 print(min(model4_max$results$MAE+model4_min$results$MAE))
 print(min(model5_max$results$MAE+model5_min$results$MAE))
 print(min(model6_max$results$MAE+model6_min$results$MAE))
 print(min(model7_max$results$MAE+model7_min$results$MAE)) # <---------------BEST MODEL SO FAR
 print(min(model8_max$results$MAE+model8_min$results$MAE))
+print(min(model9_max$results$MAE+model9_min$results$MAE))
+print(model10_max$results$MAE+model10_min$results$MAE)
+print(model11_max$results$MAE+model11_min$results$MAE)
+
+
+###################
+
+#library("caretEnsemble")
+
+#model_list <- caretList(
+#  Class~., data=training,
+#  trControl=my_control,
+#  methodList=c("glm", "rpart")
+#)
+
+#xyplot(resamples(model_list))
+#modelCor(resamples(model_list))
+
+#gbm_ensemble <- caretStack(
+#  model_list,
+#  method="gbm",
+#  verbose=FALSE,
+#  tuneLength=10,
+#  metric="ROC",
+#  trControl=trainControl(
+#    method="boot",
+#    number=10,
+#    savePredictions="final",
+#    classProbs=TRUE,
+#    summaryFunction=twoClassSummary
+#  )
+#)
+
 
 
 #------------- Models to predict price variation -------------
