@@ -77,6 +77,12 @@ clean4 <- clean4 %>%
   mutate(resolution= ifelse(pixels_x==1440 & pixels_y==900,"airhd",resolution)) %>%
   mutate(resolution= ifelse(pixels_x==3240 & pixels_y==2160,"PixelSense",resolution))
 
+resolution_t <- clean4 %>%
+  mutate(price=max_price) %>%
+  group_by(resolution) %>%
+  summarise(resolution_mean = mean(price))
+clean4 <- left_join(clean4,resolution_t)
+
 ##------------------Screen Size for TRAIN DATA---------------------------------------------------
 clean4 <- clean4 %>%
   mutate(screen_size= ifelse(screen_size>=10 & screen_size<=10.7,10,screen_size)) %>%
@@ -93,14 +99,19 @@ clean4 <- clean4 %>%
 ##---------------------Display Type---------------------------------------------
 clean4$name <- tolower(clean4$name)
 clean4 <- clean4 %>%
-  mutate(display_type= "unkonwn") %>%
+  mutate(display_type= "other") %>%
   mutate(display_type= ifelse(grepl("lcd",name),"lcd",display_type)) %>%
-  mutate(display_type= ifelse(grepl("led",name),"led",display_type)) %>%
   mutate(display_type= ifelse(grepl("oled",name),"oled",display_type)) %>%
   mutate(display_type= ifelse(grepl("ips",name),"ips",display_type)) %>%
   mutate(display_type= ifelse(brand=="Apple" & resolution=="Retina","ips",display_type)) %>%
-  mutate(display_type= ifelse(brand=="Apple" & (resolution=="HD"|resolution=="airhd"),"led",display_type)) %>%
+  mutate(display_type= ifelse(brand=="Apple" & (resolution=="HD"|resolution=="airhd"),"other",display_type)) %>%
   mutate(display_type= ifelse(grepl("Microsoft Surface",base_name),"ips",display_type))
+
+display_t <- clean4 %>%
+  mutate(price=max_price) %>%
+  group_by(display_type) %>%
+  summarise(display_mean = mean(price))
+clean4 <- left_join(clean4,display_t)
 
 ##---------------------Brand Train Data-----------------------------------------
 clean4$brand <- as.character(clean4$brand)
@@ -166,10 +177,17 @@ clean5$cpu_benchmark <- cut(clean5$cpu_benchmark_score, breaks = b, labels = nam
 clean5$cpu_benchmark <- as.numeric(clean5$cpu_benchmark)
 
 ##---------------   CPU Average Price  -------------------------------------------------
+clean5 <- clean5 %>%
+  mutate(cpu2= as.character(cpu))
+clean5<- clean5 %>%
+  mutate(cpu2= ifelse(grepl("Intel Core i\\d-\\d+",cpu_details),
+                      str_extract(clean5$cpu_details,"Intel Core i\\d-\\d"),cpu2))
+  
 cpu_t <- clean5 %>%
   mutate(price=max_price) %>%
-  group_by(cpu) %>%
+  group_by(cpu2) %>%
   summarise(cpu_mean = mean(price))
+
 clean5 <- left_join(clean5,cpu_t)
 
 ###--------------GPU Scores for TRAIN DATA-----------------------------------------------
@@ -240,7 +258,6 @@ base_nam <- base_nam %>%
   mutate(base_name_clean = base_name_clean2)
 
 base_nam$base_name_clean <- tolower(base_nam$base_name_clean)
-
 base_nam <- base_nam %>%
   mutate(base_name_clean=ifelse(grepl("acer",base_name),str_extract(base_nam$base_name_clean,"^(?=.*\\bacer\\b)(?:\\S+\\s){2}|^(?=.*\\bacer\\b)(?:\\S+){1}"),base_name_clean)) %>%
   mutate(base_name_clean=ifelse(grepl("alienware",base_name),str_extract(base_nam$base_name_clean,"(\\S+\\s){2}|^(\\S+\\s\\S+)"),base_name_clean)) %>%
@@ -390,6 +407,12 @@ clean_test1 <- clean_test1 %>%
   mutate(resolution= ifelse(pixels_x==3240 & pixels_y==2160,"PixelSense",resolution)) %>%
   mutate(resolution= ifelse(pixels_x==1800 & pixels_y==1200,"PixelSense",resolution))
 
+resolution_t <- clean4 %>%
+  mutate(price=max_price) %>%
+  group_by(resolution) %>%
+  summarise(resolution_mean = mean(price))
+clean_test1 <- left_join(clean_test1,resolution_t)
+
 ##------------------Screen Size for TEST DATA---------------------------------------------------
 clean_test1 <- clean_test1 %>%
   mutate(screen_size= ifelse(screen_size>=10 & screen_size<=10.7,10,screen_size)) %>%
@@ -441,20 +464,20 @@ clean_test1 <- left_join(clean_test1,brand_t)
 #   mutate(brand_mean= ifelse(brand_mean >2000,2000,brand_mean))
 
 #--------------CPU Scores for test data -----------------------------------------
-# clean_test1 <-clean_test1 %>%
-#   mutate(cpu_details,cpu_clean= gsub("\\s*(\\d[.]\\d*)\\s*(GHz|ghz|Ghz|Ghz|gHz).*","",clean_test1$cpu_details))
-# 
-# cpu_df<-cpu_df %>%
-#   mutate(cpu_model,cpu_clean= gsub("\\s*([@]).*|\\s*(APU).*","",cpu_df$cpu_model))
-# 
-# clean_test2 <- clean_test1 %>%
-#   left_join(cpu_df,by="cpu_clean")
-# 
-# clean_test2$cpu_model <- as.character(clean_test2$cpu_model)
-# clean_test2$cpu_benchmark_score[is.na(clean_test2$cpu_benchmark_score)] <- 500
-# clean_test2$cpu_model[is.na(clean_test2$cpu_model)] <- "other"
-# 
-# 
+clean_test1 <-clean_test1 %>%
+  mutate(cpu_details,cpu_clean= gsub("\\s*(\\d[.]\\d*)\\s*(GHz|ghz|Ghz|Ghz|gHz).*","",clean_test1$cpu_details))
+
+cpu_df<-cpu_df %>%
+  mutate(cpu_model,cpu_clean= gsub("\\s*([@]).*|\\s*(APU).*","",cpu_df$cpu_model))
+
+clean_test2 <- clean_test1 %>%
+  left_join(cpu_df,by="cpu_clean")
+
+clean_test2$cpu_model <- as.character(clean_test2$cpu_model)
+clean_test2$cpu_benchmark_score[is.na(clean_test2$cpu_benchmark_score)] <- 500
+clean_test2$cpu_model[is.na(clean_test2$cpu_model)] <- "other"
+
+
 # b <- c(-Inf, 1750, 2900,6600,7400,9100, Inf)
 # names <- c(1, 2,3,4,5,6)
 # clean_test2$cpu_benchmark <- cut(clean_test3$cpu_benchmark_score, breaks = b, labels = names)
@@ -466,9 +489,17 @@ clean_test2 <- clean_test1 %>%
   mutate(cpu,cpu= gsub("Intel Core M","Intel Core m3",cpu)) %>%
   mutate(cpu,cpu= gsub("Intel Core M","Intel Core m3",cpu))
 
+clean_test2 <- clean_test2 %>%
+  mutate(cpu2= as.character(cpu))
+clean_test2<- clean_test2 %>%
+  mutate(cpu2= ifelse(grepl("Intel Core i\\d-\\d+",cpu_details),
+                      str_extract(clean_test2$cpu_details,"Intel Core i\\d-\\d"),cpu2))
+
+clean_test2$cpu2 <- gsub("Intel Core i3-2","Intel Core i3-4",clean_test2$cpu2)
+
 cpu_t <- clean5 %>%
   mutate(price=max_price) %>%
-  group_by(cpu) %>%
+  group_by(cpu2) %>%
   summarise(cpu_mean = mean(price))
 clean_test2 <- left_join(clean_test2,cpu_t)
 
@@ -643,14 +674,19 @@ clean_test3 <- clean_test3 %>%
 ##---------------------Display Type---------------------------------------------
 clean_test3$name <- tolower(clean_test3$name)
 clean_test3 <- clean_test3 %>%
-  mutate(display_type= "unkonwn") %>%
+  mutate(display_type= "other") %>%
   mutate(display_type= ifelse(grepl("lcd",name),"lcd",display_type)) %>%
-  mutate(display_type= ifelse(grepl("led",name),"led",display_type)) %>%
   mutate(display_type= ifelse(grepl("oled",name),"oled",display_type)) %>%
   mutate(display_type= ifelse(grepl("ips",name),"ips",display_type)) %>%
   mutate(display_type= ifelse(brand=="Apple" & resolution=="Retina","ips",display_type)) %>%
-  mutate(display_type= ifelse(brand=="Apple" & (resolution=="HD"|resolution=="airhd"),"led",display_type)) %>%
+  mutate(display_type= ifelse(brand=="Apple" & (resolution=="HD"|resolution=="airhd"),"other",display_type)) %>%
   mutate(display_type= ifelse(grepl("Microsoft Surface",base_name),"ips",display_type))
+
+display_t <- clean4 %>%
+  mutate(price=max_price) %>%
+  group_by(display_type) %>%
+  summarise(display_mean = mean(price))
+clean_test3 <- left_join(clean_test3,display_t)
 
 # #--------- Factorising Test Data-----------------------------------------------
 # clean_test3$screen_size <- as.factor(clean_test3$screen_size)
@@ -664,11 +700,11 @@ clean_test3 <- clean_test3 %>%
 #          cpu_benchmark_score, gpu_benchmark_score
 
 maxPrice_Clean_Training <- clean6 %>% 
-  select(brand_mean,base_name_mean,touchscreen,screen_surface,screen_size,weight_clean,ram,storage,ssd,resolution,discrete_gpu,gpu_mean,cpu_mean,display_type,x360,os, max_price)
+  select(brand_mean,base_name_mean,touchscreen,screen_surface,screen_size,weight,ram,storage,ssd,resolution_mean,discrete_gpu,gpu_mean,cpu_mean,display_mean,x360,os, max_price)
 #maxPrice_Clean_Training <- data.frame(model.matrix(~., data=maxPrice_Clean_Training_prev))
 
 minPrice_Clean_Training <- clean6 %>% 
-  select(brand_mean,base_name_mean,touchscreen,screen_surface,screen_size,weight_clean,ram,storage,ssd,resolution,discrete_gpu,gpu_mean,cpu_mean,display_type,x360,os, min_price)
+  select(brand_mean,base_name_mean,touchscreen,screen_surface,screen_size,weight,ram,storage,ssd,resolution_mean,discrete_gpu,gpu_mean,cpu_mean,display_mean,x360,os, min_price)
 #minPrice_Clean_Training <- data.frame(model.matrix(~., data=minPrice_Clean_Training_prev))
 
 # 
@@ -696,7 +732,6 @@ minPrice_Clean_Training <- clean6 %>%
 # 
 # 
 # 
-
 
 #------Repeated K-Fold Cross Validation (K = 20, repeats = 3)----------------
 
@@ -1127,15 +1162,16 @@ mean(abs(actual_max_price$max_price-max_aveprice_pred8$max_price_pred))+ mean(ab
 # -------- Prediction of test data --------------------
 
 # Test data not normalized
-Test_prev <- clean_test3 %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score)
-Price_Test <- data.frame(model.matrix(~., data=Test_prev))
-glimpse(Test_prev)
-glimpse(Price_Test)
-model.matrix(~., data=Test_prev)
-
-# Test data normalized
-NormTest_prev <- testScaled %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score)
-Price_NormTest <- data.frame(model.matrix(~., data=NormTest_prev))
+Test_prev <- clean_test3 %>% 
+  select(brand_mean,base_name_mean,touchscreen,screen_surface,screen_size,weight,ram,storage,ssd,resolution_mean,discrete_gpu,gpu_mean,cpu_mean,display_mean,x360,os)
+# Price_Test <- data.frame(model.matrix(~., data=Test_prev))
+# glimpse(Test_prev)
+# glimpse(Price_Test)
+# model.matrix(~., data=Test_prev)
+# 
+# # Test data normalized
+# NormTest_prev <- testScaled %>% select(brand, touchscreen, screen_size , weight, ram, storage, ssd, resolution, discrete_gpu,cpu_benchmark_score,gpu_benchmark_score)
+# Price_NormTest <- data.frame(model.matrix(~., data=NormTest_prev))
 
 #Adding missing columns (use corresponding training set)
 missingcol <- names(maxPrice_Clean_Training[!(names(maxPrice_Clean_Training[, !(names(maxPrice_Clean_Training) == "max_price")]) %in% names(Price_Test))])
@@ -1148,7 +1184,7 @@ Price_NormTest[missingcol] <- 0
 id_test <- clean_test3 %>% select(id)
 
 bothModels <- list(model7_min ,model7_max)
-pred <- data.frame(predict(bothModels, Price_Test, type = "raw")) #Parallel Random Forest
+pred <- data.frame(predict(bothModels, Test_prev, type = "raw")) #Parallel Random Forest
 names(pred) <- c("MIN","MAX")
 
 results <- cbind(id_test,pred)
